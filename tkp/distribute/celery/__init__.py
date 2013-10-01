@@ -27,6 +27,9 @@ except ImportError:
 
 setup_event_listening(celery_app)
 
+logger = logging.getLogger(__name__)
+#logdir = '/export/scratch2/bscheers/lofar/release1/performance/feb2013-sp6/napels/test/run_0/log'
+logdir = '/export/scratch2/bscheers/lofar/r2/performance/oct2014-cr/napels/test/run_0/log'
 
 def map(func, iterable, arguments=[]):
     if iterable:
