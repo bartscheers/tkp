@@ -4,8 +4,12 @@ A collection of back end subroutines (mostly SQL queries).
 This module contains the routines to deal with the monitoring
 sources, provided by the user via the command line.
 """
-import logging, sys
+import logging
+from collections import namedtuple
 import time
+
+from tkp.db import general
+import tkp.db
 
 from tkp.db import execute as execute
 from tkp.db.associations import _empty_temprunningcatalog as _del_tempruncat
