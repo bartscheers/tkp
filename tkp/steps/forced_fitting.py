@@ -46,20 +46,30 @@ def insert_and_associate_forced_fits(image_id,successful_fits,successful_ids):
             raise ValueError("Forced fit type id not recognised:" + id[0])
 
     if nd_extractions:
+        logfile = open(logdir + '/' + insert_and_associate_forced_fits.__name__ + '.nd.log', 'a')
+        start = time.time()
         logger.info("adding null detections")
         dbgen.insert_extracted_sources(image_id, nd_extractions,
                                        extract_type='ff_nd',
                                        ff_runcat_ids=nd_runcats)
         dbnd.associate_nd(image_id)
+        q_end = time.time() - start
+        commit_end = time.time() - start
+        logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     else:
         logger.info("No successful nulldetection fits")
 
     if ms_extractions:
+        logfile = open(logdir + '/' + insert_and_associate_forced_fits.__name__ + '.ms.log', 'a')
+        start = time.time()
         dbgen.insert_extracted_sources(image_id, ms_extractions,
                                        extract_type='ff_ms',
                                        ff_monitor_ids=ms_ids)
         logger.info("adding monitoring sources")
         dbmon.associate_ms(image_id)
+        q_end = time.time() - start
+        commit_end = time.time() - start
+        logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     else:
         logger.info("No successful monitor fits")
 

@@ -8,6 +8,7 @@ that don't fit into a more specific collection.
 import math
 import logging
 import itertools
+import time
 
 import tkp.db
 from tkp.utility.coordinates import eq_to_cart
@@ -16,6 +17,7 @@ from tkp.utility import substitute_inf
 
 
 logger = logging.getLogger(__name__)
+logdir = '/export/scratch2/bscheers/lofar/release1/performance/feb2013-sp6/napels/test/run_0/log'
 
 
 lightcurve_query = """
@@ -52,7 +54,12 @@ def update_dataset_process_end_ts(dataset_id):
 
     """
     args = {'dataset_id': dataset_id}
+    logfile = open(logdir + '/' + update_dataset_process_end_ts.__name__ + '.log', 'a')
+    start = time.time()
     tkp.db.execute(update_dataset_process_end_ts_query, args, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write("-1," + str(q_end) + "," + str(commit_end) + "\n")
     return dataset_id
 
 
@@ -63,7 +70,12 @@ def insert_dataset(description):
     """
     query = "SELECT insertDataset(%s)"
     arguments = (description,)
+    logfile = open(logdir + '/' + insert_dataset.__name__ + '.log', 'a')
+    start = time.time()
     cursor = tkp.db.execute(query, arguments, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write("-1," + str(q_end) + "," + str(commit_end) + "\n")
     dataset_id = cursor.fetchone()[0]
     return dataset_id
 
@@ -92,10 +104,15 @@ VALUES {placeholder}
     cols_per_row = 3
     placeholder_per_row = '('+ ','.join(['%s']*cols_per_row) +')'
     placeholder_full = ','.join([placeholder_per_row]*len(positions))
+    logfile = open(logdir + '/' + insert_monitor_positions.__name__ + '.log', 'a')
+    start = time.time()
     query = insertion_query.format(placeholder= placeholder_full)
     cursor = tkp.db.execute(
         query, tuple(itertools.chain.from_iterable(monitor_entries)),
         commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write("-1," + str(q_end) + "," + str(commit_end) + "\n")
     insert_num = cursor.rowcount
     logger.info("Inserted %d sources in monitor table for dataset %s" %
                     (insert_num, dataset_id))
@@ -175,8 +192,13 @@ def insert_image(dataset, freq_eff, freq_bw,
                  'detection_thresh': detection_thresh,
                  'analysis_thresh': analysis_thresh,
                  }
+    logfile = open(logdir + '/' + insert_image.__name__ + '.log', 'a')
+    start = time.time()
     cursor = tkp.db.execute(query, arguments, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
     image_id = cursor.fetchone()[0]
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     return image_id
 
 
@@ -341,8 +363,13 @@ VALUES {placeholder}
         placeholder_full = ','.join([placeholder_per_row]*len(xtrsrc))
 
         query = insertion_query.format(placeholder= placeholder_full)
+        logfile = open(logdir + '/' + insert_extracted_sources.__name__ + '.log', 'a')
+        start = time.time()
         cursor = tkp.db.execute(query, tuple(itertools.chain.from_iterable(xtrsrc)),
                                 commit=True)
+        q_end = time.time() - start
+        commit_end = time.time() - start
+        logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
         insert_num = cursor.rowcount
         #if insert_num == 0:
         #    logger.info("No forced-fit sources added to extractedsource for "

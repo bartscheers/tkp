@@ -3,6 +3,7 @@ A collection of back end subroutines (mostly SQL queries).
 
 This module contains the routines to deal with null detections.
 """
+import time
 import logging
 from tkp.db import execute as execute
 from tkp.db.associations import _empty_temprunningcatalog as _del_tempruncat
@@ -11,6 +12,7 @@ from tkp.db.associations import (
     _update_1_to_1_runcat_flux)
 
 logger = logging.getLogger(__name__)
+logdir = '/scratch/bscheers/lofar/r2/performance/Oct2014/rocks099/10x10/run_1/log'
 
 
 def get_nulldetections(image_id, expiration=10):
@@ -76,7 +78,12 @@ SELECT t0.id
  WHERE t1.runcat IS NULL
 """
     qry_params = {'image_id': image_id, 'expiration': expiration}
+    logfile = open(logdir + '/' + get_nulldetections.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, qry_params)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     res = cursor.fetchall()
     return res
 
@@ -310,7 +317,12 @@ INSERT INTO temprunningcatalog
          AND t0.stokes = rf.stokes
 """
     qry_params = {'image_id': image_id}
+    logfile = open(logdir + '/' + _insert_tempruncat.__name__ + '.nd.log', 'a')
+    start = time.time()
     cursor = execute(query, qry_params, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     cnt = cursor.rowcount
     logger.debug("Inserted %s null detections in tempruncat" % cnt)
 
@@ -323,6 +335,11 @@ def _insert_1_to_1_assoc():
     differences might get too small to cause divisions by zero.
 
     """
+    logfile = open(logdir + '/' + _insert_1_to_1_assoc.__name__ + '.7.log', 'a')
+    start = time.time()
     cursor = execute(ONE_TO_ONE_ASSOC_QUERY, {'type': 7}, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     cnt = cursor.rowcount
     logger.debug("Inserted %s 1-to-1 null detections in assocxtrsource" % cnt)

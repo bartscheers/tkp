@@ -5,6 +5,7 @@ This module contains the routines to deal with the monitoring
 sources, provided by the user via the command line.
 """
 import logging, sys
+import time
 
 from tkp.db import execute as execute
 from tkp.db.associations import _empty_temprunningcatalog as _del_tempruncat
@@ -15,6 +16,7 @@ from tkp.db.associations import (
     _update_1_to_1_runcat_flux)
 
 logger = logging.getLogger(__name__)
+logdir = '/export/scratch2/bscheers/lofar/release1/performance/feb2013-sp6/napels/test/run_0/log'
 
 def get_monitor_entries(dataset_id):
     """
@@ -35,7 +37,12 @@ SELECT id
  WHERE dataset = %(dataset_id)s
 """
     qry_params = {'dataset_id': dataset_id}
+    logfile = open(logdir + '/' + get_monitor_entries.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, qry_params)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(dataset_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     res = cursor.fetchall()
     return res
 
@@ -57,17 +64,17 @@ def associate_ms(image_id):
     After all this, the temporary table is emptied again.
     """
 
-    _del_tempruncat()
+    _del_tempruncat(image_id)
 
     _insert_tempruncat(image_id)
 
-    _insert_1_to_1_assoc()
-    _update_1_to_1_runcat()
+    _insert_1_to_1_assoc(image_id)
+    _update_1_to_1_runcat(image_id)
 
-    n_updated = _update_1_to_1_runcat_flux()
+    n_updated = _update_1_to_1_runcat_flux(image_id)
     if n_updated:
         logger.debug("Updated flux for %s monitor sources" % n_updated)
-    n_inserted = _insert_1_to_1_runcat_flux()
+    n_inserted = _insert_1_to_1_runcat_flux(image_id)
     if n_inserted:
         logger.debug("Inserted new-band flux measurement for %s monitor sources"
                     % n_inserted)
@@ -79,7 +86,7 @@ def associate_ms(image_id):
 
     _update_monitor_runcats(image_id)
 
-    _del_tempruncat()
+    _del_tempruncat(image_id)
 
 def _insert_tempruncat(image_id):
     """
@@ -273,12 +280,17 @@ INSERT INTO temprunningcatalog
          AND t0.stokes = rf.stokes
 """
     qry_params = {'image_id': image_id}
+    logfile = open(logdir + '/' + _insert_tempruncat.__name__ + '.monlist.log', 'a')
+    start = time.time()
     cursor = execute(query, qry_params, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     cnt = cursor.rowcount
     logger.debug("Inserted %s monitoring-runcat pairs in tempruncat" % cnt)
 
 
-def _insert_runcat_flux():
+def _insert_runcat_flux(image_id):
     """Monitoring sources that were not yet fitted in this frequency band before,
     will be appended to it. Those have their first f_datapoint.
     """
@@ -317,7 +329,12 @@ INSERT INTO runningcatalog_flux
     FROM temprunningcatalog
    WHERE f_datapoints = 1
     """
+    logfile = open(logdir + '/' + _insert_runcat_flux.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     cnt = cursor.rowcount
     if cnt > 0:
         logger.debug("Inserted new-band fluxes for %s monitoring sources in runcat_flux" % cnt)
@@ -377,7 +394,12 @@ INSERT INTO runningcatalog
      AND x.extract_type = 2
      AND mon.runcat IS NULL
 """
+    logfile = open(logdir + '/' + _insert_new_runcat.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, {'image_id': image_id}, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     ins = cursor.rowcount
     if ins > 0:
         logger.debug("Added %s new monitoring sources to runningcatalog" % ins)
@@ -407,7 +429,12 @@ UPDATE monitor
 
     """
 
+    logfile = open(logdir + '/' + _update_monitor_runcats.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, {'image_id': image_id}, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     up = cursor.rowcount
     logger.debug("Updated runcat cols for %s newly monitored sources" % up)
 
@@ -465,7 +492,12 @@ INSERT INTO runningcatalog_flux
      AND x.extract_type = 2
      AND mon.runcat IS NULL
 """
+    logfile = open(logdir + '/' + _insert_new_runcat_flux.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, {'image_id': image_id}, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     ins = cursor.rowcount
     if ins > 0:
         logger.debug("Added %s new monitoring fluxes to runningcatalog_flux" % ins)
@@ -509,17 +541,27 @@ INSERT INTO assocxtrsource
     AND mon.runcat IS NULL
     AND x.extract_type = 2
     """
+    logfile = open(logdir + '/' + _insert_new_1_to_1_assoc.__name__ + '.log', 'a')
+    start = time.time()
     cursor = execute(query, {'image_id': image_id}, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     cnt = cursor.rowcount
     if cnt > 0:
         logger.debug("Inserted %s new runcat-monitoring source pairs in assocxtrsource" % cnt)
 
-def _insert_1_to_1_assoc():
+def _insert_1_to_1_assoc(image_id):
     """
     The runcat-monitoring pairs are appended to the assocxtrsource
     (light-curve) table as a type = 9 datapoint.
     """
+    logfile = open(logdir + '/' + _insert_1_to_1_assoc.__name__ + '.t9.log', 'a')
+    start = time.time()
     cursor = execute(ONE_TO_ONE_ASSOC_QUERY, {'type': 9}, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     cnt = cursor.rowcount
     logger.debug("Inserted %s runcat-monitoring source pairs in assocxtrsource" % cnt)
 
