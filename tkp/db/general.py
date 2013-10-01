@@ -59,7 +59,7 @@ def update_dataset_process_end_ts(dataset_id):
     tkp.db.execute(update_dataset_process_end_ts_query, args, commit=True)
     q_end = time.time() - start
     commit_end = time.time() - start
-    logfile.write("-1," + str(q_end) + "," + str(commit_end) + "\n")
+    logfile.write(str(dataset_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     return dataset_id
 
 

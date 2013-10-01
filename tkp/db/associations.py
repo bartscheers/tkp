@@ -1175,7 +1175,6 @@ INSERT INTO assocxtrsource
     commit_end = time.time() - start
     logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
 
-
 def _insert_1_to_many_assocskyrgn(image_id):
     """
     Copy skyregion associations from old runcat entries for new one-to-many
