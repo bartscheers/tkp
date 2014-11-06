@@ -11,6 +11,7 @@ The exceptions are a couple of celery-specific subroutines.
 import imp
 import logging
 import os
+import time
 from tkp import steps
 from tkp.config import initialize_pipeline_config, get_database_config
 from tkp.db import consistency as dbconsistency
