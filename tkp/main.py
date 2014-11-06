@@ -4,6 +4,7 @@ The main pipeline logic, from where all other components are called.
 import imp
 import logging
 import os
+import time
 from tkp import steps
 from tkp.config import initialize_pipeline_config, get_database_config
 from tkp.db import consistency as dbconsistency
