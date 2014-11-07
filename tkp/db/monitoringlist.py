@@ -329,7 +329,7 @@ INSERT INTO runningcatalog_flux
     FROM temprunningcatalog
    WHERE f_datapoints = 1
     """
-    logfile = open(logdir + '/' + _insert_runcat_flux.__name__ + '.log', 'a')
+    logfile = open(logdir + '/' + _insert_runcat_flux.__name__ + '.monlist.log', 'a')
     start = time.time()
     cursor = execute(query, commit=True)
     q_end = time.time() - start
@@ -394,7 +394,7 @@ INSERT INTO runningcatalog
      AND x.extract_type = 2
      AND mon.runcat IS NULL
 """
-    logfile = open(logdir + '/' + _insert_new_runcat.__name__ + '.log', 'a')
+    logfile = open(logdir + '/' + _insert_new_runcat.__name__ + '.monlist.log', 'a')
     start = time.time()
     cursor = execute(query, {'image_id': image_id}, commit=True)
     q_end = time.time() - start
@@ -492,7 +492,7 @@ INSERT INTO runningcatalog_flux
      AND x.extract_type = 2
      AND mon.runcat IS NULL
 """
-    logfile = open(logdir + '/' + _insert_new_runcat_flux.__name__ + '.log', 'a')
+    logfile = open(logdir + '/' + _insert_new_runcat_flux.__name__ + '.monlist.log', 'a')
     start = time.time()
     cursor = execute(query, {'image_id': image_id}, commit=True)
     q_end = time.time() - start
