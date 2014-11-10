@@ -201,6 +201,61 @@ def insert_image(dataset, freq_eff, freq_bw,
     logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     return image_id
 
+def delete_detections(image_id):
+    """Delete temporary detections
+
+    """
+    query = """\
+    DELETE FROM detection
+    """
+    logfile = open(logdir + '/' + delete_detections.__name__ + '.log', 'a')
+    start = time.time()
+    tkp.db.execute(query, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+
+def insert_detections(image_id, results, extract_type
+                             ff_runcat_ids=None, ff_monitor_ids=None):
+    """Insert all detections from sourcefinder straight into the database.
+
+
+    The strict sequence from results (the sourcefinder detections) is given below.
+    Note the units between sourcefinder and database.
+    (0) ra [deg], (1) dec [deg],
+    (2) ra_fit_err [deg], (3) decl_fit_err [deg],
+    (4) peak_flux [Jy], (5) peak_flux_err [Jy],
+    (6) int_flux [Jy], (7) int_flux_err [Jy],
+    (8) significance detection level,
+    (9) beam major width (arcsec), (10) - minor width (arcsec), (11) - parallactic angle [deg],
+    (12) ew_sys_err [arcsec], (13) ns_sys_err [arcsec],
+    (14) error_radius [arcsec]
+    (15) gaussian fit (bool)
+
+    """
+    if not len(results):
+        logger.info("No extract_type=%s sources added to extractedsource for"
+                    " image %s" % (extract, image_id))
+        return
+
+    copyinto = "COPY %s RECORDS INTO detection FROM STDIN USING DELIMITERS ',', '\\n' NULL AS '';\n" % len(results)
+    stdin = ""
+    #for entry in results:
+    #    stdin += ','.join(str(col) for col in entry) + '\n'
+    for entry in results:
+        stdin += ','.join(map(str, entry)) + '\n'
+    query = copyinto + stdin
+    #print "insert_detections; query:\n", query
+    logfile = open(logdir + '/' + insert_detections.__name__ + '.log', 'a')
+    start = time.time()
+    cursor = tkp.db.execute(query, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+    insert_num = cursor.rowcount
+    logger.info("Inserted %d sources in detection for image %s" %
+                    (insert_num, image_id))
+
 
 def insert_extracted_sources(image_id, results, extract_type,
                              ff_runcat_ids=None, ff_monitor_ids=None):
