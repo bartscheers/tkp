@@ -61,10 +61,10 @@ class TestForcedFit(unittest.TestCase):
                 # The second source is only seen at timestep 1, band 3.
                 if (image.taustart_ts == taustart_tss[0] and
                             image.freq_eff == freq_effs[0]):
-                    dbgen.insert_extracted_sources(image.id, [src0], 'blind')
+                    dbgen.insert_extr_sources(image.id, [src0], 'blind')
                 elif (image.taustart_ts == taustart_tss[1] and
                       image.freq_eff == freq_effs[3]):
-                    dbgen.insert_extracted_sources(image.id, [src1], 'blind')
+                    dbgen.insert_extr_sources(image.id, [src1], 'blind')
                 else:
                     pass
 
@@ -81,12 +81,12 @@ class TestForcedFit(unittest.TestCase):
                 elif image.taustart_ts == taustart_tss[1]:
                     # src0 is a null detection at the second timestep
                     self.assertEqual(len(nd_ids_pos), 1)
-                    dbgen.insert_extracted_sources(image.id, [src0], 'ff_nd',
+                    dbgen.insert_extr_sources(image.id, [src0], 'ff_nd',
                            ff_runcat_ids=[ids for ids, ra, decl in nd_ids_pos])
                 else:
                     # All other images have two null detections.
                     self.assertEqual(len(nd_ids_pos), 2)
-                    dbgen.insert_extracted_sources(image.id, [src0, src1],
+                    dbgen.insert_extr_sources(image.id, [src0, src1],
                                                    'ff_nd',
                            ff_runcat_ids=[ids for ids, ra, decl in nd_ids_pos])
 
@@ -289,9 +289,9 @@ class TestForcedFit(unittest.TestCase):
             for image in images:
                 # The sources are only seen at timestep 0
                 if (image.taustart_ts == taustart_tss[0]):
-                    dbgen.insert_extracted_sources(image.id, [src0], 'blind')
+                    dbgen.insert_extr_sources(image.id, [src0], 'blind')
                 elif (image.taustart_ts == taustart_tss[1]):
-                    dbgen.insert_extracted_sources(image.id, [src1], 'blind')
+                    dbgen.insert_extr_sources(image.id, [src1], 'blind')
                 else:
                     pass
 
@@ -376,7 +376,7 @@ class TestForcedFit(unittest.TestCase):
             for image in images:
                 # The sources are only seen at timestep 0
                 if (image.taustart_ts == taustart_tss[0]):
-                    dbgen.insert_extracted_sources(image.id, [src0,src1],
+                    dbgen.insert_extr_sources(image.id, [src0,src1],
                                                    'blind')
                 else:
                     pass
@@ -394,13 +394,13 @@ class TestForcedFit(unittest.TestCase):
                 elif image.taustart_ts == taustart_tss[1]:
                     # src0 & src1 are null detections at the second timestep
                     self.assertEqual(len(nd_ids_pos), 2)
-                    dbgen.insert_extracted_sources(image.id, [src0,src1],
+                    dbgen.insert_extr_sources(image.id, [src0,src1],
                                                    'ff_nd',
                           ff_runcat_ids=[ids for ids, ra, decl in nd_ids_pos])
                 else:
                     # All other images have two null detections.
                     self.assertEqual(len(nd_ids_pos), 2)
-                    dbgen.insert_extracted_sources(image.id, [src0, src1],
+                    dbgen.insert_extr_sources(image.id, [src0, src1],
                                                    'ff_nd',
                           ff_runcat_ids=[ids for ids, ra, decl in nd_ids_pos])
 

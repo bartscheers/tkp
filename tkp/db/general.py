@@ -191,6 +191,14 @@ def insert_image(dataset, freq_eff, freq_bw, taustart_ts, tau_time,
     logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
     return image_id
 
+def insert_extr_sources(image_id, results, extract_type,
+                             ff_runcat_ids=None, ff_monitor_ids=None):
+
+    delete_detections(image_id)
+    insert_detections(image_id, results, extract_type, ff_runcat_ids=ff_runcat_ids, ff_monitor_ids=ff_monitor_ids)
+    insert_extracted_sources_from_detections(image_id)
+    delete_detections(image_id)
+
 def delete_detections(image_id):
     """Delete temporary detections
 
@@ -205,8 +213,8 @@ def delete_detections(image_id):
     commit_end = time.time() - start
     logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
 
-def insert_detections(image_id, results, extract_type
-                             ff_runcat_ids=None, ff_monitor_ids=None):
+def insert_detections(image_id, results, extract_type,
+                             ff_runcat_ids, ff_monitor_ids):
     """Insert all detections from sourcefinder straight into the database.
 
 
@@ -222,20 +230,40 @@ def insert_detections(image_id, results, extract_type
     (14) error_radius [arcsec]
     (15) gaussian fit (bool)
 
+    We add
+    (16) extract_type is either 0,1 or 2 of 'blind', 'ff_nd' or 'ff_ms' resp.
+    (17) runcat, if extract_type is 'ff_nd' or 'ff_ms'
     """
     if not len(results):
         logger.info("No extract_type=%s sources added to extractedsource for"
-                    " image %s" % (extract, image_id))
+                    " image %s" % (extract_type, image_id))
         return
+
+    print "ff_runcat_ids =", ff_runcat_ids
+    print "ff_monitor_ids =", ff_monitor_ids
 
     copyinto = "COPY %s RECORDS INTO detection FROM STDIN USING DELIMITERS ',', '\\n' NULL AS '';\n" % len(results)
     stdin = ""
-    #for entry in results:
-    #    stdin += ','.join(str(col) for col in entry) + '\n'
-    for entry in results:
-        stdin += ','.join(map(str, entry)) + '\n'
-    query = copyinto + stdin
-    #print "insert_detections; query:\n", query
+    print "results =", results
+    if extract_type == 'blind':
+        for entry in results:
+            # We add two fields which are '' => NULL
+            stdin += ','.join(map(str, entry)) + ',0,\n'
+    elif extract_type == 'ff_nd':
+        for i, entry in enumerate(results):
+            # We add one field (the last) which is '' => NULL
+            stdin += ','.join(map(str, entry)) + ',1,' + str(ff_runcat_ids[i]) + '\n'
+    elif extract_type == 'ff_ms':
+        for i, entry in enumerate(results):
+            # We add one field (the last) which is '' => NULL
+            stdin += ','.join(map(str, entry)) + ',2,' + str(ff_monitor_ids[i]) + '\n'
+    #print "before replace stdin = ",stdin
+    #cpinp = stdin.replace('True', '1')
+    #print "after replace stdin = ",cpinp
+    #query = copyinto + cpinp
+
+    query = copyinto + stdin.replace('True', '1')
+    print "insert_detections; query:\n", query
     logfile = open(logdir + '/' + insert_detections.__name__ + '.log', 'a')
     start = time.time()
     cursor = tkp.db.execute(query, commit=True)
@@ -246,6 +274,120 @@ def insert_detections(image_id, results, extract_type
     logger.info("Inserted %d sources in detection for image %s" %
                     (insert_num, image_id))
 
+def insert_extracted_sources_from_detections(image_id):
+    """
+    (0) ra [deg], (1) dec [deg],
+    (2) ra_fit_err [deg], (3) decl_fit_err [deg],
+    (4) peak_flux [Jy], (5) peak_flux_err [Jy],
+    (6) int_flux [Jy], (7) int_flux_err [Jy],
+    (8) significance detection level,
+    (9) beam major width (arcsec), (10) - minor width (arcsec), (11) - parallactic angle [deg],
+    (12) ew_sys_err [arcsec], (13) ns_sys_err [arcsec],
+    (14) error_radius [arcsec]
+    (15) gaussian fit (bool)
+
+    """
+
+    insertion_query = """\
+INSERT INTO extractedsource
+  (ra
+  ,decl
+  ,ra_fit_err
+  ,decl_fit_err
+  ,f_peak
+  ,f_peak_err
+  ,f_int
+  ,f_int_err
+  ,det_sigma
+  ,semimajor
+  ,semiminor
+  ,pa
+  ,ew_sys_err
+  ,ns_sys_err
+  ,error_radius
+  ,fit_type
+  ,ra_err
+  ,decl_err
+  ,uncertainty_ew
+  ,uncertainty_ns
+  ,image
+  ,zone
+  ,x
+  ,y
+  ,z
+  ,racosdecl
+  ,extract_type
+  ,ff_runcat
+  ,ff_monitor
+  )
+  SELECT ra
+        ,decl
+        ,ra_fit_err
+        ,decl_fit_err
+        ,f_peak
+        ,f_peak_err
+        ,f_int
+        ,f_int_err
+        ,det_sigma
+        ,semimajor
+        ,semiminor
+        ,pa
+        ,ew_sys_err
+        ,ns_sys_err
+        ,error_radius
+        ,fit_type
+        ,SQRT( ra_fit_err * ra_fit_err
+             + alpha(ew_sys_err/3600, decl) * alpha(ew_sys_err/3600, decl)
+             ) AS ra_err
+        ,SQRT( decl_fit_err * decl_fit_err
+             + ns_sys_err * ns_sys_err / 12960000)
+             AS decl_err
+        ,SQRT( ew_sys_err * ew_sys_err
+             + error_radius * error_radius
+             ) / 3600 AS uncertainty_ew
+        ,SQRT( ns_sys_err * ns_sys_err
+             + error_radius * error_radius
+             ) / 3600 AS uncertainty_ns
+        ,%(image_id)s AS image
+        ,CAST(FLOOR(decl) AS INTEGER) AS zone
+        ,COS(RADIANS(decl)) * COS(RADIANS(ra)) AS x
+        ,COS(RADIANS(decl)) * SIN(RADIANS(ra)) AS y
+        ,SIN(RADIANS(decl)) AS z
+        ,ra * COS(RADIANS(decl)) AS racosdecl
+        ,extract_type
+        ,CASE WHEN extract_type = 1
+              THEN runcat
+              ELSE NULL
+         END AS ff_runcat
+        ,CASE WHEN extract_type = 2
+              THEN runcat
+              ELSE NULL
+         END AS ff_monitor
+    FROM detection
+
+"""
+    qry_params = {'image_id':image_id}
+    logfile = open(logdir + '/' + insert_extracted_sources_from_detections.__name__ + '.log', 'a')
+    start = time.time()
+    cursor = tkp.db.execute(insertion_query, qry_params, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+    insert_num = cursor.rowcount
+    logger.info("Inserted %d sources in extractedsource for image %s" %
+                (insert_num, image_id))
+    #if insert_num == 0:
+    #    logger.info("No forced-fit sources added to extractedsource for "
+    #                "image %s" % (image_id,))
+    #if extract_type == 'blind':
+    #    logger.info("Inserted %d sources in extractedsource for image %s" %
+    #                (insert_num, image_id))
+    #elif extract_type == 'ff_nd':
+    #    logger.info("Inserted %d forced-fit null detections in extractedsource"
+    #                " for image %s" % (insert_num, image_id))
+    #elif extract_type == 'ff_ms':
+    #    logger.info("Inserted %d forced-fit for monitoring in extractedsource"
+    #                " for image %s" % (insert_num, image_id))
 
 def insert_extracted_sources(image_id, results, extract_type,
                              ff_runcat_ids=None, ff_monitor_ids=None):
@@ -310,6 +452,7 @@ def insert_extracted_sources(image_id, results, extract_type,
         - ra * cos(radians(decl)), this is very often being used in
           source-distance calculations
     """
+
     if not len(results):
         logger.info("No extract_type=%s sources added to extractedsource for"
                     " image %s" % (extract_type, image_id))
@@ -363,6 +506,7 @@ def insert_extracted_sources(image_id, results, extract_type,
             r.append(None)
 
         xtrsrc.append(r)
+        print "xtrsrc:", xtrsrc
 
     insertion_query = """\
 INSERT INTO extractedsource

@@ -115,7 +115,7 @@ If an ``id`` is supplied, ``data`` is ignored.
 import logging
 from tkp.db.generic import columns_from_table, set_columns_for_table
 from tkp.db.general import (insert_dataset, insert_image,
-                            insert_extracted_sources, lightcurve)
+                            insert_extr_sources, lightcurve)
 from tkp.db.associations import associate_extracted_sources
 import tkp.db
 import tkp.db.quality
@@ -498,7 +498,8 @@ class Image(DBObject):
        #To do: Figure out a saner method of passing the results around
        # (Namedtuple, for starters?)
 
-        insert_extracted_sources(self._id, results=results, extract_type=extract)
+        #insert_extracted_sources(self._id, results=results, extract_type=extract)
+        insert_extr_sources(self._id, results=results, extract_type=extract)
 
     def associate_extracted_sources(self, deRuiter_r, new_source_sigma_margin):
         """Associate sources from the last images with previously

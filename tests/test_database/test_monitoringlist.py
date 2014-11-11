@@ -73,7 +73,7 @@ class TestMonitor(unittest.TestCase):
         images = []
         for img_pars in self.im_params:
             img = tkp.db.Image(dataset=self.dataset, data=img_pars)
-            dbgen.insert_extracted_sources(img.id, [blind_src], 'blind')
+            dbgen.insert_extr_sources(img.id, [blind_src], 'blind')
             associate_extracted_sources(img.id, deRuiter_r=5.68)
             nd_requests = get_nulldetections(img.id)
             self.assertEqual(len(nd_requests),0)
@@ -88,7 +88,7 @@ class TestMonitor(unittest.TestCase):
                 self.assertAlmostEqual(mon_requests[idx][2],mon_srcs[idx].dec)
 
             #Insert fits for the in-field sources and then associate
-            dbgen.insert_extracted_sources(img.id,
+            dbgen.insert_extr_sources(img.id,
                        [superimposed_mon_src, mon_src_in_field], 'ff_ms',
                        ff_monitor_ids=[mon_requests[0][0],
                                        mon_requests[1][0]])

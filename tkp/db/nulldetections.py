@@ -12,7 +12,7 @@ from tkp.db.associations import (
     _update_1_to_1_runcat_flux)
 
 logger = logging.getLogger(__name__)
-logdir = '/scratch/bscheers/lofar/r2/performance/Oct2014/rocks099/10x10/run_1/log'
+logdir = '/export/scratch2/bscheers/lofar/r2/performance/Oct2014/napels/10x10/run_1/log'
 
 def get_nulldetections(image_id):
     """
@@ -95,18 +95,18 @@ def associate_nd(image_id):
     After all this, the temporary table is emptied again.
     """
 
-    _del_tempruncat()
+    _del_tempruncat(image_id)
     _insert_tempruncat(image_id)
-    _insert_1_to_1_assoc()
+    _insert_1_to_1_assoc(image_id)
 
-    n_updated = _update_1_to_1_runcat_flux()
+    n_updated = _update_1_to_1_runcat_flux(image_id)
     if n_updated:
         logger.debug("Updated flux for %s null_detections" % n_updated)
-    n_inserted = _insert_1_to_1_runcat_flux()
+    n_inserted = _insert_1_to_1_runcat_flux(image_id)
     if n_inserted:
         logger.debug("Inserted new-band flux measurement for %s null_detections"
                     % n_inserted)
-    _del_tempruncat()
+    _del_tempruncat(image_id)
 
 def _insert_tempruncat(image_id):
     """
@@ -296,7 +296,7 @@ INSERT INTO temprunningcatalog
     logger.debug("Inserted %s null detections in tempruncat" % cnt)
 
 
-def _insert_1_to_1_assoc():
+def _insert_1_to_1_assoc(image_id):
     """
     The null detection forced fits are appended to the assocxtrsource
     (light-curve) table as a type = 7 datapoint.

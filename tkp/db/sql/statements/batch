@@ -6,6 +6,7 @@ tables/frequencyband.sql
 tables/dataset.sql
 tables/skyregion.sql
 tables/image.sql
+tables/detection.sql
 tables/extractedsource.sql
 tables/runningcatalog.sql
 tables/monitor.sql

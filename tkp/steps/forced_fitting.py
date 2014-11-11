@@ -1,4 +1,5 @@
 import logging
+import time
 import tkp.accessors
 from tkp.accessors import sourcefinder_image_from_accessor
 import tkp.accessors
@@ -7,7 +8,7 @@ from tkp.db import monitoringlist as dbmon
 from tkp.db import nulldetections as dbnd
 
 logger = logging.getLogger(__name__)
-
+logdir = '/export/scratch2/bscheers/lofar/release1/performance/feb2013-sp6/napels/test/run_0/log'
 
 def get_forced_fit_requests(image):
     nd_requested_fits = dbnd.get_nulldetections(image.id)
@@ -49,7 +50,10 @@ def insert_and_associate_forced_fits(image_id,successful_fits,successful_ids):
         logfile = open(logdir + '/' + insert_and_associate_forced_fits.__name__ + '.nd.log', 'a')
         start = time.time()
         logger.info("adding null detections")
-        dbgen.insert_extracted_sources(image_id, nd_extractions,
+        #dbgen.insert_extracted_sources(image_id, nd_extractions,
+        #                               extract_type='ff_nd',
+        #                               ff_runcat_ids=nd_runcats)
+        dbgen.insert_extr_sources(image_id, nd_extractions,
                                        extract_type='ff_nd',
                                        ff_runcat_ids=nd_runcats)
         dbnd.associate_nd(image_id)
@@ -62,7 +66,10 @@ def insert_and_associate_forced_fits(image_id,successful_fits,successful_ids):
     if ms_extractions:
         logfile = open(logdir + '/' + insert_and_associate_forced_fits.__name__ + '.ms.log', 'a')
         start = time.time()
-        dbgen.insert_extracted_sources(image_id, ms_extractions,
+        #dbgen.insert_extracted_sources(image_id, ms_extractions,
+        #                               extract_type='ff_ms',
+        #                               ff_monitor_ids=ms_ids)
+        dbgen.insert_extr_sources(image_id, ms_extractions,
                                        extract_type='ff_ms',
                                        ff_monitor_ids=ms_ids)
         logger.info("adding monitoring sources")
