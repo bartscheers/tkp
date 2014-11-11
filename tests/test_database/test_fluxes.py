@@ -100,7 +100,7 @@ class TestOne2ManyFlux(unittest.TestCase):
                                          flux = 3.0, flux_err = 5e-1,
                                             ))
 
-        dbgen.insert_extracted_sources(imageid1, img1_srclist, 'blind')
+        dbgen.insert_extr_sources(imageid1, img1_srclist, 'blind')
         associate_extracted_sources(imageid1, deRuiter_r=3.717)
 
         # image 2
@@ -121,7 +121,7 @@ class TestOne2ManyFlux(unittest.TestCase):
             flux = 3.4, flux_err = 5e-1,
             ))
 
-        dbgen.insert_extracted_sources(imageid2, img2_srclist, 'blind')
+        dbgen.insert_extr_sources(imageid2, img2_srclist, 'blind')
         associate_extracted_sources(imageid2, deRuiter_r=3.717)
 
         # Manually compose the lists of sources we expect to see associated
@@ -210,8 +210,8 @@ class TestMany2OneFlux(unittest.TestCase):
             flux = 3.4, flux_err = 5e-1,
             ))
 
-        dbgen.insert_extracted_sources(image1.id, img1_srclist, 'blind')
-        associate_extracted_sources(image1.id, deRuiter_r=3.717)
+        dbgen.insert_extr_sources(image1.id, img1_srclist, 'blind')
+        associate_extracted_sources(image1.id, deRuiter_r = 3.717)
 
         # image 2
         image2 = tkp.db.Image(database=self.database, dataset=dataset, data=im_params[1])
@@ -224,8 +224,8 @@ class TestMany2OneFlux(unittest.TestCase):
             flux = 3.0, flux_err = 5e-1,
             ))
 
-        dbgen.insert_extracted_sources(image2.id, img2_srclist, 'blind')
-        associate_extracted_sources(image2.id, deRuiter_r=3.717)
+        dbgen.insert_extr_sources(image2.id, img2_srclist, 'blind')
+        associate_extracted_sources(image2.id, deRuiter_r = 3.717)
 
         # Manually compose the lists of sources we expect to see associated
         # into runningcatalog entries:
@@ -334,14 +334,14 @@ class TestMany2Many(unittest.TestCase):
         # image 1
         image1 = tkp.db.Image(database=self.database, dataset=dataset,
                               data=im_params[0])
-        dbgen.insert_extracted_sources(
+        dbgen.insert_extr_sources(
             image1.id, [eastern_src,western_src], 'blind')
         associate_extracted_sources(image1.id, deRuiter_r=3.717)
 
         # image 2
         image2 = tkp.db.Image(database=self.database, dataset=dataset,
                               data=im_params[1])
-        dbgen.insert_extracted_sources(
+        dbgen.insert_extr_sources(
             image2.id, [northern_source, southern_source], 'blind')
         associate_extracted_sources(image2.id, deRuiter_r=3.717)
 
@@ -438,14 +438,14 @@ class TestMany2Many(unittest.TestCase):
         # image 1
         image1 = tkp.db.Image(database=self.database, dataset=dataset,
                               data=im_params[0])
-        dbgen.insert_extracted_sources(
+        dbgen.insert_extr_sources(
             image1.id, [eastern_src,western_src], 'blind')
         associate_extracted_sources(image1.id, deRuiter_r=3.717)
 
         # image 2
         image2 = tkp.db.Image(database=self.database, dataset=dataset,
                               data=im_params[1])
-        dbgen.insert_extracted_sources(
+        dbgen.insert_extr_sources(
             image2.id, [northern_source, southern_source], 'blind')
         associate_extracted_sources(image2.id, deRuiter_r=3.717)
 

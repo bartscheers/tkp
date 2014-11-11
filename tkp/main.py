@@ -145,7 +145,8 @@ def run(job_name, supplied_mon_coords=[]):
             image.update(rms_min=results.rms_min, rms_max=results.rms_max,
                 detection_thresh=se_parset['detection_threshold'],
                 analysis_thresh=se_parset['analysis_threshold'])
-            dbgen.insert_extracted_sources(image.id, results.sources, 'blind')
+            #dbgen.insert_extracted_sources(image.id, results.sources, 'blind')
+            dbgen.insert_extr_sources(image.id, results.sources, 'blind')
 
         logger.info("performing database operations")
 
