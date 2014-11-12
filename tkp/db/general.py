@@ -206,6 +206,7 @@ def insert_extr_sources(image_id, results, extract_type,
 
     delete_detections(image_id)
     insert_detections(image_id, results, extract_type, ff_runcat_ids=ff_runcat_ids, ff_monitor_ids=ff_monitor_ids)
+    delete_detections_inf_fluxerrors(image_id)
     insert_extracted_sources_from_detections(image_id)
     delete_detections(image_id)
 
@@ -249,12 +250,8 @@ def insert_detections(image_id, results, extract_type,
                     " image %s" % (extract_type, image_id))
         return
 
-    print "ff_runcat_ids =", ff_runcat_ids
-    print "ff_monitor_ids =", ff_monitor_ids
-
     copyinto = "COPY %s RECORDS INTO detection FROM STDIN USING DELIMITERS ',', '\\n' NULL AS '';\n" % len(results)
     stdin = ""
-    print "results =", results
     if extract_type == 'blind':
         for entry in results:
             # We add two fields which are '' => NULL
@@ -267,13 +264,8 @@ def insert_detections(image_id, results, extract_type,
         for i, entry in enumerate(results):
             # We add one field (the last) which is '' => NULL
             stdin += ','.join(map(str, entry)) + ',2,' + str(ff_monitor_ids[i]) + '\n'
-    #print "before replace stdin = ",stdin
-    #cpinp = stdin.replace('True', '1')
-    #print "after replace stdin = ",cpinp
-    #query = copyinto + cpinp
 
     query = copyinto + stdin.replace('True', '1')
-    print "insert_detections; query:\n", query
     logfile = open(logdir + '/' + insert_detections.__name__ + '.log', 'a')
     start = time.time()
     cursor = tkp.db.execute(query, commit=True)
@@ -283,6 +275,44 @@ def insert_detections(image_id, results, extract_type,
     insert_num = cursor.rowcount
     logger.info("Inserted %d sources in detection for image %s" %
                     (insert_num, image_id))
+
+def delete_detections_inf_fluxerrors(image_id):
+    """Delete temporary detections that have infinite flux errors
+
+    """
+    query_sel = """\
+    SELECT ra
+          ,decl
+      FROM detection
+     WHERE f_peak_err = 'inf'
+       AND f_int_err = 'inf'
+    """
+    logfile = open(logdir + '/' + delete_detections_inf_fluxerrors.__name__ + '.sel.log', 'a')
+    start = time.time()
+    cursor = tkp.db.execute(query_sel, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+    results = cursor.fetchall()
+
+    query_del = """\
+    DELETE
+      FROM detection
+     WHERE f_peak_err = 'inf'
+       AND f_int_err = 'inf'
+    """
+    logfile = open(logdir + '/' + delete_detections_inf_fluxerrors.__name__ + '.del.log', 'a')
+    start = time.time()
+    cursor = tkp.db.execute(query_del, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+    deleted = cursor.rowcount
+    if deleted > 0:
+        for i in range(len(results)):
+            logger.warn("Dropped source fit with infinite flux errors "
+                        "at position %s %s" % (results[i][0], results[i][1]))
+            continue
 
 def insert_extracted_sources_from_detections(image_id):
     """
@@ -330,50 +360,80 @@ INSERT INTO extractedsource
   ,ff_runcat
   ,ff_monitor
   )
-  SELECT ra
-        ,decl
-        ,ra_fit_err
-        ,decl_fit_err
-        ,f_peak
-        ,f_peak_err
-        ,f_int
-        ,f_int_err
-        ,det_sigma
-        ,semimajor
-        ,semiminor
-        ,pa
-        ,ew_sys_err
-        ,ns_sys_err
-        ,error_radius
-        ,fit_type
-        ,SQRT( ra_fit_err * ra_fit_err
-             + alpha(ew_sys_err/3600, decl) * alpha(ew_sys_err/3600, decl)
+  SELECT t0.ra
+        ,t0.decl
+        ,t0.ra_fit_err
+        ,t0.decl_fit_err
+        ,t0.f_peak
+        ,t0.f_peak_err
+        ,t0.f_int
+        ,t0.f_int_err
+        ,t0.det_sigma
+        ,t0.semimajor
+        ,t0.semiminor
+        ,t0.pa
+        ,t0.ew_sys_err
+        ,t0.ns_sys_err
+        ,t0.t0error_radius
+        ,t0.fit_type
+        ,SQRT( t0.ra_fit_err * t0.ra_fit_err
+             + alpha(t0.ew_sys_err/3600, t0.decl) * alpha(t0.ew_sys_err/3600, t0.decl)
              ) AS ra_err
-        ,SQRT( decl_fit_err * decl_fit_err
-             + ns_sys_err * ns_sys_err / 12960000)
+        ,SQRT( t0.decl_fit_err * t0.decl_fit_err
+             + t0.ns_sys_err * t0.ns_sys_err / 12960000)
              AS decl_err
-        ,SQRT( ew_sys_err * ew_sys_err
-             + error_radius * error_radius
+        ,SQRT( t0.ew_sys_err * t0.ew_sys_err
+             + t0.t0error_radius * t0.t0error_radius
              ) / 3600 AS uncertainty_ew
-        ,SQRT( ns_sys_err * ns_sys_err
-             + error_radius * error_radius
+        ,SQRT( t0.ns_sys_err * t0.ns_sys_err
+             + t0.t0error_radius * t0.t0error_radius
              ) / 3600 AS uncertainty_ns
-        ,%(image_id)s AS image
-        ,CAST(FLOOR(decl) AS INTEGER) AS zone
-        ,COS(RADIANS(decl)) * COS(RADIANS(ra)) AS x
-        ,COS(RADIANS(decl)) * SIN(RADIANS(ra)) AS y
-        ,SIN(RADIANS(decl)) AS z
-        ,ra * COS(RADIANS(decl)) AS racosdecl
-        ,extract_type
-        ,CASE WHEN extract_type = 1
-              THEN runcat
+        ,t0.image
+        ,t0.zone
+        ,t0.x
+        ,t0.y
+        ,t0.z
+        ,t0.racosdecl
+        ,t0.extract_type
+        ,CASE WHEN t0.extract_type = 1
+              THEN t0.runcat
               ELSE NULL
          END AS ff_runcat
-        ,CASE WHEN extract_type = 2
-              THEN runcat
+        ,CASE WHEN t0.extract_type = 2
+              THEN t0.runcat
               ELSE NULL
          END AS ff_monitor
-    FROM detection
+    FROM (SELECT ra
+                ,decl
+                ,ra_fit_err
+                ,decl_fit_err
+                ,f_peak
+                ,f_peak_err
+                ,f_int
+                ,f_int_err
+                ,det_sigma
+                ,semimajor
+                ,semiminor
+                ,pa
+                ,ew_sys_err
+                ,ns_sys_err
+                ,CASE WHEN error_radius = 'inf'
+                      THEN 360
+                      ELSE error_radius
+                 END AS t0error_radius
+                ,fit_type
+                ,%(image_id)s AS image
+                ,CAST(FLOOR(decl) AS INTEGER) AS zone
+                ,COS(RADIANS(decl)) * COS(RADIANS(ra)) AS x
+                ,COS(RADIANS(decl)) * SIN(RADIANS(ra)) AS y
+                ,SIN(RADIANS(decl)) AS z
+                ,ra * COS(RADIANS(decl)) AS racosdecl
+                ,extract_type
+                ,runcat
+            FROM detection
+           WHERE f_peak_err < 'inf'
+             AND f_int_err < 'inf'
+         ) t0
 
 """
     qry_params = {'image_id':image_id}
@@ -386,18 +446,6 @@ INSERT INTO extractedsource
     insert_num = cursor.rowcount
     logger.info("Inserted %d sources in extractedsource for image %s" %
                 (insert_num, image_id))
-    #if insert_num == 0:
-    #    logger.info("No forced-fit sources added to extractedsource for "
-    #                "image %s" % (image_id,))
-    #if extract_type == 'blind':
-    #    logger.info("Inserted %d sources in extractedsource for image %s" %
-    #                (insert_num, image_id))
-    #elif extract_type == 'ff_nd':
-    #    logger.info("Inserted %d forced-fit null detections in extractedsource"
-    #                " for image %s" % (insert_num, image_id))
-    #elif extract_type == 'ff_ms':
-    #    logger.info("Inserted %d forced-fit for monitoring in extractedsource"
-    #                " for image %s" % (insert_num, image_id))
 
 def insert_extracted_sources(image_id, results, extract_type,
                              ff_runcat_ids=None, ff_monitor_ids=None):
@@ -517,7 +565,6 @@ def insert_extracted_sources(image_id, results, extract_type,
             r.append(None)
 
         xtrsrc.append(r)
-        print "xtrsrc:", xtrsrc
 
     insertion_query = """\
 INSERT INTO extractedsource
