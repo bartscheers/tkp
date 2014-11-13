@@ -398,7 +398,7 @@ INSERT INTO temprunningcatalog
   SELECT t0.runcat
         ,t0.xtrsrc
         ,t0.distance_arcsec
-        ,t0.r
+        ,SQRT(t0.r_sq) AS r
         ,t0.dataset
         ,t0.band
         ,t0.stokes
@@ -496,20 +496,18 @@ INSERT INTO temprunningcatalog
                                ) AS distance_arcsec
                 ,CASE WHEN rc0.wm_ra < 90 OR rc0.wm_ra > 270
                       THEN
-                           SQRT(  (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
-                                 * (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
-                                 / (rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew + x0.uncertainty_ew * x0.uncertainty_ew)
-                                 + (rc0.wm_decl - x0.decl) * (rc0.wm_decl - x0.decl)
-                                 / (rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns + x0.uncertainty_ns * x0.uncertainty_ns)
-                               )
+                             (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                           * (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                           / (rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew + x0.uncertainty_ew * x0.uncertainty_ew)
+                           + (rc0.wm_decl - x0.decl) * (rc0.wm_decl - x0.decl)
+                           / (rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns + x0.uncertainty_ns * x0.uncertainty_ns)
                       ELSE
-                           SQRT(  (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
-                                 * (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
-                                 / (rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew + x0.uncertainty_ew * x0.uncertainty_ew)
-                                 +  (rc0.wm_decl - x0.decl) * (rc0.wm_decl - x0.decl)
-                                 / (rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns + x0.uncertainty_ns * x0.uncertainty_ns)
-                                )
-                 END AS r
+                             (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                           * (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                           / (rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew + x0.uncertainty_ew * x0.uncertainty_ew)
+                           +  (rc0.wm_decl - x0.decl) * (rc0.wm_decl - x0.decl)
+                           / (rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns + x0.uncertainty_ns * x0.uncertainty_ns)
+                 END AS r_sq
                 ,x0.f_peak
                 ,x0.f_peak_err
                 ,x0.f_int
@@ -578,19 +576,17 @@ INSERT INTO temprunningcatalog
                                  AND x0.decl + %(beamwidths_limit)s * i0.rb_smaj
              AND rc0.x*x0.x + rc0.y*x0.y + rc0.z*x0.z > cos(radians(%(beamwidths_limit)s * i0.rb_smaj))
              AND CASE WHEN rc0.wm_ra < 90 OR rc0.wm_ra > 270
-                      THEN SQRT(  (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
-                          * (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
-                          / (x0.uncertainty_ew * x0.uncertainty_ew + rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew)
-                          + (x0.decl - rc0.wm_decl) * (x0.decl - rc0.wm_decl)
-                          / (x0.uncertainty_ns * x0.uncertainty_ns + rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns)
-                         )
-                      ELSE SQRT(  (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                      THEN (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                         * (MOD(CAST(rc0.wm_ra + 180 AS NUMERIC(11,8)), 360) - MOD(CAST(x0.ra + 180 AS NUMERIC(11,8)), 360)) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
+                         / (x0.uncertainty_ew * x0.uncertainty_ew + rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew)
+                         + (x0.decl - rc0.wm_decl) * (x0.decl - rc0.wm_decl)
+                         / (x0.uncertainty_ns * x0.uncertainty_ns + rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns)
+                      ELSE   (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
                            * (rc0.wm_ra - x0.ra) * COS(RADIANS((rc0.wm_decl + x0.decl)/2))
                            / (x0.uncertainty_ew * x0.uncertainty_ew + rc0.wm_uncertainty_ew * rc0.wm_uncertainty_ew)
                            + (x0.decl - rc0.wm_decl) * (x0.decl - rc0.wm_decl)
                            / (x0.uncertainty_ns * x0.uncertainty_ns + rc0.wm_uncertainty_ns * rc0.wm_uncertainty_ns)
-                          )
-                 END < %(deRuiter)s
+                 END < %(deRuiter_sq)s
          ) t0
          LEFT OUTER JOIN runningcatalog_flux rf0
          ON t0.runcat = rf0.runcat
@@ -800,16 +796,24 @@ INSERT INTO temprunningcatalog
     #mw = _check_meridian_wrap(conn, image_id)
     if meridian_wrap['q_across'] == True:
         logger.debug("Search across 0/360 meridian: %s" % meridian_wrap)
+        args = {'image_id': image_id, 'deRuiter_sq': deRuiter_r**2,
+                'beamwidths_limit' : beamwidths_limit}
         query = q_across_ra0
-
-    args = {'image_id': image_id, 'deRuiter': deRuiter_r,
-            'beamwidths_limit' : beamwidths_limit}
-    logfile = open(logdir + '/' + _insert_temprunningcatalog.__name__ + '.log', 'a')
-    start = time.time()
-    tkp.db.execute(query, args, commit=True)
-    q_end = time.time() - start
-    commit_end = time.time() - start
-    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+        logfile = open(logdir + '/' + _insert_temprunningcatalog.__name__ + '.across.log', 'a')
+        start = time.time()
+        tkp.db.execute(query, args, commit=True)
+        q_end = time.time() - start
+        commit_end = time.time() - start
+        logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+    else:
+        args = {'image_id': image_id, 'deRuiter': deRuiter_r,
+                'beamwidths_limit' : beamwidths_limit}
+        logfile = open(logdir + '/' + _insert_temprunningcatalog.__name__ + '.log', 'a')
+        start = time.time()
+        tkp.db.execute(query, args, commit=True)
+        q_end = time.time() - start
+        commit_end = time.time() - start
+        logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
 
 
 def _flag_many_to_many_tempruncat(image_id):
@@ -1435,7 +1439,7 @@ INSERT INTO assocxtrsource
         ,%(type)s
         ,t0.distance_arcsec
         ,t0.r
-        ,t0.v_int_inter / t0.avg_f_int
+        ,SQRT(t0.v_int_inter_sq) / t0.avg_f_int
         ,t0.eta_int_inter / t0.avg_f_int_weight
         ,t0.f_datapoints
     FROM (SELECT tmprc.runcat
@@ -1452,12 +1456,11 @@ INSERT INTO assocxtrsource
                       THEN 0
                       ELSE CASE WHEN ABS(tmprc.avg_f_int_sq - tmprc.avg_f_int * tmprc.avg_f_int) < 8e-14
                                 THEN 0
-                                ELSE SQRT(CAST(tmprc.f_datapoints AS DOUBLE PRECISION)
+                                ELSE CAST(tmprc.f_datapoints AS DOUBLE PRECISION)
                                          * (tmprc.avg_f_int_sq - tmprc.avg_f_int * tmprc.avg_f_int)
                                          / (CAST(tmprc.f_datapoints AS DOUBLE PRECISION) - 1.0)
-                                         )
                            END
-                 END AS v_int_inter
+                 END AS v_int_inter_sq
                 ,CASE WHEN tmprc.f_datapoints = 1
                       THEN 0
                       ELSE (CAST(tmprc.f_datapoints AS DOUBLE PRECISION)
