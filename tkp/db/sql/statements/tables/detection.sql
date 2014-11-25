@@ -1,19 +1,19 @@
 CREATE TABLE detection
-  (ra DOUBLE NOT NULL
-  ,decl DOUBLE NOT NULL
-  ,ra_fit_err DOUBLE NOT NULL
-  ,decl_fit_err DOUBLE NOT NULL
-  ,f_peak DOUBLE NULL
-  ,f_peak_err DOUBLE NULL
-  ,f_int DOUBLE NULL
-  ,f_int_err DOUBLE NULL
-  ,det_sigma DOUBLE NOT NULL
-  ,semimajor DOUBLE NULL
-  ,semiminor DOUBLE NULL
-  ,pa DOUBLE NULL
-  ,ew_sys_err DOUBLE NOT NULL
-  ,ns_sys_err DOUBLE NOT NULL
-  ,error_radius DOUBLE NOT NULL
+  (ra DOUBLE PRECISION NOT NULL
+  ,decl DOUBLE PRECISION NOT NULL
+  ,ra_fit_err DOUBLE PRECISION NOT NULL
+  ,decl_fit_err DOUBLE PRECISION NOT NULL
+  ,f_peak DOUBLE PRECISION NULL
+  ,f_peak_err DOUBLE PRECISION NULL
+  ,f_int DOUBLE PRECISION NULL
+  ,f_int_err DOUBLE PRECISION NULL
+  ,det_sigma DOUBLE PRECISION NOT NULL
+  ,semimajor DOUBLE PRECISION NULL
+  ,semiminor DOUBLE PRECISION NULL
+  ,pa DOUBLE PRECISION NULL
+  ,ew_sys_err DOUBLE PRECISION NOT NULL
+  ,ns_sys_err DOUBLE PRECISION NOT NULL
+  ,error_radius DOUBLE PRECISION NOT NULL
   ,fit_type SMALLINT NOT NULL
   ,extract_type SMALLINT NOT NULL
   ,runcat INT 
