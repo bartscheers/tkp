@@ -4,6 +4,7 @@ deal with source association.
 """
 import logging
 import tkp.db
+import time
 from sqlalchemy.exc import IntegrityError
 
 import time
