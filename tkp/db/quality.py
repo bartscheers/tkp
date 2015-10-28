@@ -18,6 +18,7 @@ reason = {
     'beam': RejectReason(id=1, desc='beam invalid'),
     'bright_source': RejectReason(id=2, desc='bright source near'),
     'tau_time': RejectReason(id=3, desc='tau_time invalid'),
+    'nan': RejectReason(id=4, desc='contains NaN'),
 }
 
 query_reject = """\
@@ -90,7 +91,7 @@ def isrejected(imageid):
     logfile.write(str(imageid) + "," + str(q_end) + "," + str(commit_end) + "\n")
     results = cursor.fetchall()
     if len(results) > 0:
-        return ["%s: %s" % row for row in results]
+        return ["%s: %s" % tuple(row) for row in results]
     else:
         return False
 

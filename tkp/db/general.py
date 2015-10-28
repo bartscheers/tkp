@@ -118,26 +118,36 @@ VALUES {placeholder}
                     (insert_num, dataset_id))
 
 
-def insert_image(dataset, freq_eff, freq_bw, taustart_ts, tau_time,
-                 beam_smaj_pix, beam_smin_pix, beam_pa_rad, deltax, deltay, url,
-                 centre_ra, centre_decl, xtr_radius, rms_qc,
-                 rms_min, rms_max, detection_thresh, analysis_thresh
+def insert_image(dataset, freq_eff, freq_bw,
+                 taustart_ts, tau_time,
+                 beam_smaj_pix, beam_smin_pix, beam_pa_rad,
+                 deltax, deltay,
+                 url,
+                 centre_ra, centre_decl, xtr_radius,
+                 rms_qc,  rms_min, rms_max,
+                 detection_thresh, analysis_thresh
                  ):
-    """Insert an image for a given dataset with the column values
-    given in the argument list.
+    """
+    Insert an image for a given dataset.
 
     Args:
-     - restoring beam: beam_smaj_pix, beam_smin_pix are the semimajor and
-       semiminor axes in pixel values; beam_pa_rad is the position angle
-       in radians.
-       They all will be converted to degrees, because that is unit used in
-       the database.
-     - centre_ra, centre_decl, xtr_radius:
-       These define the region within ``xtr_radius`` degrees of the
-       field centre, that will be used for source extraction.
-       (This obviously implies a promised on behalf of the pipeline not to do
-       anything else!)
-       Note centre_ra, centre_decl, extracion_radius should all be in degrees.
+        dataset (int): ID of parent dataset.
+        freq_eff: See :ref:`Image table definitions <schema-image>`.
+        freq_bw: See :ref:`Image table definitions <schema-image>`.
+        taustart_ts: See :ref:`Image table definitions <schema-image>`.
+        taus_time: See :ref:`Image table definitions <schema-image>`.
+        beam_smaj_pix (float): Restoring beam semimajor axis length in pixels.
+            (Converted to degrees before storing to database).
+        beam_smin_pix (float): Restoring beam semiminor axis length in pixels.
+            (Converted to degrees before storing to database).
+        beam_pa_rad (float): Restoring beam parallactic angle in radians.
+            (Converted to degrees before storing to database).
+        deltax(float): Degrees per pixel increment in x-direction.
+        deltay(float): Degrees per pixel increment in y-direction.
+        centre_ra(float): Image central RA co-ord, in degrees.
+        centre_decl(float): Image central Declination co-ord, in degrees.
+        xtr_radius(float): Radius in degrees from field centre that will be used
+            for source extraction.
 
     """
     query = """\
@@ -456,6 +466,7 @@ def insert_extracted_sources(image_id, results, extract_type,
     (12) ew_sys_err [arcsec], (13) ns_sys_err [arcsec],
     (14) error_radius [arcsec]
     (15) gaussian fit (bool)
+    (16), (17) chisq, reduced_chisq (float)
 
     ra_fit_err and decl_fit_err are the 1-sigma errors from the gaussian fit,
     in degrees. Note that for a source located towards the poles the ra_fit_err
@@ -573,6 +584,8 @@ INSERT INTO extractedsource
   ,ns_sys_err
   ,error_radius
   ,fit_type
+  ,chisq
+  ,reduced_chisq
   ,ra_err
   ,decl_err
   ,uncertainty_ew

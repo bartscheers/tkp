@@ -271,7 +271,7 @@ class ImageData(object):
 
         Args:
 
-            grid (numpy.ma.array)
+            grid (numpy.ma.MaskedArray)
 
         Kwargs:
 
@@ -279,7 +279,7 @@ class ImageData(object):
 
         Returns:
 
-            (numpy.ndarray)
+            (numpy.ma.MaskedArray)
 
         Used to transform the RMS, background or FDR grids produced by
         L{_grids()} to a map we can compare with the image data.
@@ -327,10 +327,11 @@ class ImageData(object):
             # lower than the minimum value in the map. If required, these
             # can be trimmed off. No point doing this if the map is already
             # fully masked, though.
-            my_map = numpy.where(
-                my_map >= numpy.min(grid), my_map, numpy.min(grid)
+            my_map = numpy.ma.MaskedArray(
+                    data = numpy.where(
+                        my_map >= numpy.min(grid), my_map, numpy.min(grid)),
+                    mask = my_map.mask
             )
-
         return my_map
 
     ###########################################################################
@@ -369,8 +370,7 @@ class ImageData(object):
                 equal to the restoring beam
 
         Returns:
-
-             (..utility.containers.ExtractionResults):
+             :class:`tkp.utility.containers.ExtractionResults`
         """
 
         if anl > det:
@@ -610,7 +610,7 @@ class ImageData(object):
         This function wraps around fit_to_point().
 
         Args:
-            positions (list of (RA, Dec) tuples): Positions to be fit,
+            positions (list): list of (RA, Dec) tuples. Positions to be fit,
                 in decimal degrees.
             boxsize: See :py:func:`fit_to_point`
             threshold: as above.
@@ -625,11 +625,11 @@ class ImageData(object):
         fit_to_point, not in sky coordinates.
 
         Returns:
-            A list of successful fits.
-            If ``ids`` is None, returns a single list of
-            :class:`tkp.sourcefinder.extract.Detection` s.
-            Otherwise, returns a tuple of two matched lists:
-            ([detections], [matching_ids]).
+            list: A list of successful fits.
+                If ``ids`` is None, returns a single list of
+                :class:`tkp.sourcefinder.extract.Detection` s.
+                Otherwise, returns a tuple of two matched lists:
+                ([detections], [matching_ids]).
         """
 
         if ids is not None:

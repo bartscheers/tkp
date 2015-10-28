@@ -2,9 +2,14 @@
 initialises or removes TRAP tables in a database.
 """
 import os
+import re
 import sys
 import tkp
 from tkp.db.database import DB_VERSION
+import tkp.db.database
+import tkp.db.model
+from tkp.config import get_database_config
+from sqlalchemy.exc import ProgrammingError
 
 
 tkp_folder = tkp.__path__[0]
@@ -18,9 +23,6 @@ tokens = (
     ('%NODES%', '1'),
     ('%VERSION%', str(DB_VERSION))
 )
-
-
-
 
 
 def get_input(text):
@@ -45,6 +47,11 @@ def verify(dbconfig):
     print("\thost:       " + (dbconfig['host'] or ""))
     print("\tport:       " + str(dbconfig['port']))
 
+    if not re.match(r'\w+$', dbconfig['database']):
+        print("\n!!! WARNING !!! Banana does not handles non-alphanumeric "
+              "database names well. Please remove any non-alphanumeric "
+              "character from the database name.")
+
     if dbconfig['destroy']:
         print("\n!!! WARNING !!! This will first REMOVE all data in '%s'"
               % dbconfig['database'])
@@ -54,31 +61,6 @@ def verify(dbconfig):
         sys.stderr.write("Aborting.\n")
         sys.exit(1)
 
-
-def connect(dbconfig):
-    """
-    Connect to the database
-
-    args:
-        parsed: an argparse namespace
-
-    returns:
-        a database connection
-    """
-    if dbconfig['engine'] == "postgresql":
-        import psycopg2
-        return psycopg2.connect(database=dbconfig['database'], user=dbconfig['user'],
-                                password=dbconfig['password'], host=dbconfig['host'],
-                                port=dbconfig['port'])
-    elif dbconfig['engine'] == "monetdb":
-        import monetdb
-        return monetdb.sql.connect(database=dbconfig['database'], user=dbconfig['user'],
-                                   password=dbconfig['password'], host=dbconfig['host'],
-                                   port=dbconfig['port'], autocommit=True)
-    else:
-        msg = "engine %s is not implemented" % dbconfig['engine']
-        sys.stderr.write(msg)
-        raise NotImplementedError(msg)
 
 
 def destroy_postgres(connection):
@@ -91,7 +73,7 @@ def destroy_postgres(connection):
         connection: A monetdb DB connection
     """
 
-    # both queries below generate a resultset with rows containing SQL queries
+    # queries below generate a resultset with rows containing SQL queries
     # which can be executed to drop the db content
     postgres_gen_drop_tables = """
 select 'drop table if exists "' || tablename || '" cascade;'
@@ -105,7 +87,16 @@ from pg_proc inner join pg_namespace ns on (pg_proc.pronamespace = ns.oid)
 where ns.nspname = 'public'  order by proname;
 """
 
-    for big_query in postgres_gen_drop_tables, postgres_gen_drop_functions:
+    postgres_gen_drop_sequences = """
+select 'drop sequence ' ||  relname || ';'
+from pg_class c
+inner join pg_namespace ns on (c.relnamespace = ns.oid)
+where ns.nspname = 'public' and c.relkind = 'S';
+"""
+
+    for big_query in postgres_gen_drop_tables, \
+                     postgres_gen_drop_functions, \
+                     postgres_gen_drop_sequences:
         cursor = connection.cursor()
         cursor.execute(big_query)
         queries = [row[0] for row in cursor.fetchall()]
@@ -121,10 +112,10 @@ def destroy_monetdb():
     """
 
     msg = """
-tkp-manage.py doesn't support the removal of all db content at the moment, you
+trap-manage.py doesn't support the removal of all db content at the moment, you
 need to do this manually by destroying and recreating the database. Please refer
 to the TKP manual on how to recreate a TKP database. When you recreate the
-database manually you should run tkp-manage.py initdb again without the -d
+database manually you should run trap-manage.py initdb again without the -d
 flag.
 """
     sys.stderr.write(msg)
@@ -142,22 +133,27 @@ def destroy(dbconfig):
     """
     assert(dbconfig['destroy'])
     if dbconfig['engine'] == 'postgresql':
-        connection = connect(dbconfig)
-        destroy_postgres(connection)
+        database = tkp.db.database.Database()
+
+        destroy_postgres(database.connection.connection)
     elif dbconfig['engine'] == 'monetdb':
         destroy_monetdb()
 
 
-def set_monetdb_schema(cur, dbconfig):
+def set_monetdb_schema(session, dbconfig):
     """
     create custom schema. use with MonetDB only.
     """
-    schema_query = """
-CREATE SCHEMA "%(database)s" AUTHORIZATION "%(user)s";
-ALTER USER "%(user)s" SET SCHEMA "%(database)s";
+    create_query = """
+CREATE SCHEMA "trap" AUTHORIZATION "%(user)s";
+ALTER USER "%(user)s" SET SCHEMA "trap";
+SET SCHEMA "trap";
 """
-    print schema_query % dbconfig
-    cur.execute(schema_query % dbconfig)
+    q = session.execute("select id from sys.schemas where name = 'trap'")
+    if len(q.fetchall()) == 0:
+        print create_query % dbconfig
+        session.execute(create_query % dbconfig)
+        session.commit()
 
 
 def populate(dbconfig):
@@ -173,29 +169,40 @@ def populate(dbconfig):
     if not dbconfig['yes']:
         verify(dbconfig)
 
+    # configure the database before we do anyting else
+    get_database_config(dbconfig, apply=True)
+
+    database = tkp.db.database.Database()
+    database.connect()
+
     if dbconfig['destroy']:
         destroy(dbconfig)
 
-    conn = connect(dbconfig)
-    cur = conn.cursor()
+    session = database.Session()
 
     if dbconfig['engine'] == 'postgresql':
         # make sure plpgsql is enabled
         try:
-            cur.execute("CREATE LANGUAGE plpgsql;")
-        except conn.ProgrammingError:
-            conn.rollback()
+            session.execute("CREATE LANGUAGE plpgsql;")
+        except ProgrammingError:
+            session.rollback()
     if dbconfig['engine'] == 'monetdb':
-        set_monetdb_schema(cur, dbconfig)
+        set_monetdb_schema(session, dbconfig)
         # reconnect to switch to schema
-        conn.close()
-        conn = connect(dbconfig)
-        cur = conn.cursor()
+        session.commit()
+        database.reconnect()
 
     batch_file = os.path.join(sql_repo, 'batch')
 
     error = "\nproblem processing \"%s\".\nMaybe the DB is already populated. "\
             "Try -d/--destroy argument for initdb cmd.\n\n"
+
+    tkp.db.model.Base.metadata.create_all(database.alchemy_engine)
+
+
+    version = tkp.db.model.Version(name='revision',
+                                   value=tkp.db.model.SCHEMA_VERSION)
+    session.add(version)
 
     for line in [l.strip() for l in open(batch_file) if not l.startswith("#")]:
         if not line:  # skip empty lines
@@ -208,12 +215,10 @@ def populate(dbconfig):
 
             if not dialected:  # empty query, can happen
                 continue
-
             try:
-                cur.execute(dialected)
+                session.execute(dialected)
             except Exception as e:
                 sys.stderr.write(error % sql_file)
                 raise
-    if dbconfig['engine'] == 'postgresql':
-        conn.commit()
-    conn.close()
+    session.commit()
+

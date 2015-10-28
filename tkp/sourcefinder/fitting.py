@@ -6,6 +6,7 @@ import math
 import numpy
 import scipy.optimize
 from .gaussian import gaussian
+from .stats import indep_pixels
 import utils
 
 FIT_PARAMS = ('peak', 'xbar', 'ybar', 'semimajor', 'semiminor', 'theta')
@@ -21,13 +22,11 @@ def moments(data, beam, threshold=0):
             semi-minor axes
 
     Returns:
-
-        (dict): peak, total, x barycenter, y barycenter, semimajor
+        dict: peak, total, x barycenter, y barycenter, semimajor
             axis, semiminor axis, theta
 
     Raises:
-
-        ValueError (in case of NaN in input)
+        exceptions.ValueError: in case of NaN in input.
 
     Use the first moment of the distribution is the barycenter of an
     ellipse. The second moments are used to estimate the rotation angle
@@ -111,31 +110,27 @@ def moments(data, beam, threshold=0):
         }
 
 
-def fitgaussian(data, params, fixed=None, maxfev=0):
+def fitgaussian(pixels, params, fixed=None, maxfev=0):
     """Calculate source positional values by fitting a 2D Gaussian
 
     Args:
-
-        data (numpy.ndarray): Pixel values
+        pixels (numpy.ma.MaskedArray): Pixel values (with bad pixels masked)
 
         params (dict): initial fit parameters (possibly estimated
             using the moments() function, above)
 
     Kwargs:
-
         fixed (dict): parameters & their values to be kept frozen (ie, not
             fitted)
 
         maxfev (int): maximum number of calls to the error function
 
     Returns:
-
-        (dict): peak, total, x barycenter, y barycenter, semimajor,
+        dict: peak, total, x barycenter, y barycenter, semimajor,
             semiminor, theta (radians)
 
     Raises:
-
-        ValueError (in case of a bad fit)
+        exceptions.ValueError: In case of a bad fit.
 
     Perform a least squares fit to an elliptical Gaussian.
 
@@ -164,7 +159,7 @@ def fitgaussian(data, params, fixed=None, maxfev=0):
         :type fixed: dict
 
         :returns: 2d-array of difference between estimated Gaussian function
-            and the actual data
+            and the actual pixels
         """
         paramlist = list(paramlist)
         gaussian_args = []
@@ -180,8 +175,11 @@ def fitgaussian(data, params, fixed=None, maxfev=0):
 
         # The .compressed() below is essential so the Gaussian fit will not
         # take account of the masked values (=below threshold) at the edges
-        # and corners of data (=(masked) array, so rectangular in shape).
-        return (numpy.fromfunction(g, data.shape) - data).compressed()
+        # and corners of pixels (=(masked) array, so rectangular in shape).
+        pixel_resids = numpy.ma.MaskedArray(
+            data = numpy.fromfunction(g, pixels.shape) - pixels,
+            mask = pixels.mask)
+        return pixel_resids.compressed()
 
     # maxfev=0, the default, corresponds to 200*(N+1) (NB, not 100*(N+1) as
     # the scipy docs state!) function evaluations, where N is the number of
@@ -222,3 +220,52 @@ def fitgaussian(data, params, fixed=None, maxfev=0):
     results['semiminor'] = abs(results['semiminor'])
 
     return results
+
+def goodness_of_fit(masked_residuals, noise, beam):
+    """
+    Calculates the goodness-of-fit values, `chisq` and `reduced_chisq`.
+
+    .. Warning::
+        We do not use the `standard chi-squared
+        formula <https://en.wikipedia.org/wiki/Goodness_of_fit#Regression_analysis>`_
+        for calculating these goodness-of-fit
+        values, and should probably rename them in the next release.
+        See below for details.
+
+
+    These goodness-of-fit values are related to, but not quite the same as
+    reduced chi-squared.
+    Strictly speaking the reduced chi-squared is statistically
+    invalid for a Gaussian model from the outset
+    (see `arxiv:1012.3754 <http://arxiv.org/abs/1012.3754>`_).
+    We attempt to provide a resolution-independent estimate of goodness-of-fit
+    ('reduced chi-squared'), by using the same 'independent pixels' correction
+    as employed when estimating RMS levels, to normalize the chi-squared value.
+    However, as applied to the standard formula this will sometimes
+    imply that we are fitting a fractional number of datapoints less than 1!
+    As a result, it doesn't really make sense to try and apply the
+    'degrees-of-freedom' correction, as this would likely result in a
+    negative ``reduced_chisq`` value.
+    (And besides, the 'degrees of freedom' concept is invalid for non-linear
+    models.) Finally, note that when called from
+    :func:`.source_profile_and_errors`, the noise-estimate at the peak-pixel
+    is supplied, so will typically over-estimate the noise and
+    hence under-estimate the chi-squared values.
+
+    Args:
+        masked_residuals(numpy.ma.MaskedArray): The pixel-residuals from the fit
+        noise (float): An estimate of the noise level. Could also be set to
+            a masked numpy array matching the data, for per-pixel noise
+            estimates.
+        beam (tuple): Beam parameters
+
+    Returns:
+        tuple: chisq, reduced_chisq
+
+    """
+    gauss_resid_normed = (masked_residuals / noise).compressed()
+    chisq = numpy.sum(gauss_resid_normed*gauss_resid_normed)
+    n_fitted_pix = len(masked_residuals.compressed().ravel())
+    n_indep_pix = indep_pixels(n_fitted_pix, beam)
+    reduced_chisq = chisq / n_indep_pix
+    return chisq, reduced_chisq

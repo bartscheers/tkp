@@ -7,6 +7,7 @@ from tkp.accessors.detection import isfits, islofarhdf5, detect, iscasa
 from tkp.accessors.lofarcasaimage import LofarCasaImage
 from tkp.accessors.casaimage import CasaImage
 from tkp.accessors.fitsimage import FitsImage
+from tkp.accessors.amicasaimage import AmiCasaImage
 import tkp.accessors
 from tkp.testutil.decorators import requires_data
 from tkp.testutil.data import DATAPATH
@@ -17,6 +18,7 @@ casatable = os.path.join(DATAPATH, 'accessors/casa.table')
 fitsfile = os.path.join(DATAPATH, 'accessors/lofar.fits')
 hdf5file = os.path.join(DATAPATH, 'accessors/lofar.h5')
 antennafile = os.path.join(DATAPATH, 'lofar/CS001-AntennaArrays.conf')
+amicasatable = os.path.join(DATAPATH, 'accessors/ami-la.image')
 
 class TestAutodetect(unittest.TestCase):
     @requires_data(lofarcasatable)
@@ -37,7 +39,7 @@ class TestAutodetect(unittest.TestCase):
 
     @requires_data(hdf5file)
     def test_ishdf5(self):
-        # TODO: disable this for now, since pyrap can't parse LOFAR hdf5
+        # TODO: disable this for now, since casacore can't parse LOFAR hdf5
         #self.assertTrue(islofarhdf5(hdf5file))
         self.assertFalse(isfits(hdf5file))
         self.assertFalse(iscasa(hdf5file))
@@ -56,3 +58,10 @@ class TestAutodetect(unittest.TestCase):
         self.assertEqual(accessor.__class__, LofarCasaImage)
         self.assertRaises(IOError, tkp.accessors.open, antennafile)
         self.assertRaises(IOError, tkp.accessors.open, 'doesntexists')
+
+    @requires_data(amicasatable)
+    def test_isamicasa(self):
+        self.assertTrue(iscasa(amicasatable))
+        self.assertFalse(islofarhdf5(amicasatable))
+        self.assertFalse(isfits(amicasatable))
+        self.assertEqual(detect(amicasatable), AmiCasaImage)

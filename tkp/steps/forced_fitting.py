@@ -10,8 +10,8 @@ from tkp.db import nulldetections as dbnd
 logger = logging.getLogger(__name__)
 logdir = '/export/scratch2/bscheers/lofar/release1/performance/feb2013-sp6/napels/test/run_0/log'
 
-def get_forced_fit_requests(image):
-    nd_requested_fits = dbnd.get_nulldetections(image.id)
+def get_forced_fit_requests(image, expiration):
+    nd_requested_fits = dbnd.get_nulldetections(image.id, expiration)
     logger.info("Found %s null detections" % len(nd_requested_fits))
     mon_entries = dbmon.get_monitor_entries(image.dataset.id)
 
@@ -89,13 +89,13 @@ def perform_forced_fits(fit_posns, fit_ids,
     positions.
 
     Args:
-        fit_posns (list of (RA,Decl) 2-tuples): Positions to be fit.
+        fit_posns (list): List of (RA, Dec) tuples: Positions to be fit.
         fit_ids: List of identifiers for each requested fit position.
         image_path (str): path to image for measurements.
         extraction_params (dict): source extraction parameters, as a dictionary.
 
     Returns:
-        A matched pair of lists (serialized_fits, ids), corresponding to
+        tuple: A matched pair of lists (serialized_fits, ids), corresponding to
         successfully fitted positions.
         NB returned lists may be shorter than input lists
         if some fits are unsuccessful.

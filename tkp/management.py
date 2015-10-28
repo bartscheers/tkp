@@ -3,12 +3,12 @@ This is a tool for managing a TKP project. It can be used to initialize a TKP
 project and the jobs inside a project. To start using this tool you first
 create a TraP project by running:
 
-  $ tkp-manage.py initproject <projectname>
+  $ trap-manage.py initproject <projectname>
 
 In the folder where you want to put the TraP project. To learn more about a
-specific `tkp-manage.py` subcommand, run:
+specific `trap-manage.py` subcommand, run:
 
-  $ tkp-manage.py <subcommand> -h
+  $ trap-manage.py <subcommand> -h
 
 Have a nice day!
 """
@@ -216,12 +216,6 @@ def prepare_job(jobname):
     sys.path.append(jobdir)
 
 
-def celery_cmd(args):
-    from celery.bin import celery
-    base = celery.CeleryCommand(app='tkp.distribute.celery.celery_app')
-    base.execute_from_commandline(sys.argv[1:])
-
-
 def run_job(args):
     print "running job '%s'" % args.name
     prepare_job(args.name)
@@ -238,68 +232,68 @@ def init_db(options):
     else:
         dbconfig = get_database_config(None, apply=False)
 
-    if 'engine' not in dbconfig or not dbconfig['engine']:
-        dbconfig['engine'] = 'postgresql'
-
-    if 'port' not in dbconfig or not dbconfig['port']:
-        if dbconfig['engine'] == 'monetdb':
-            dbconfig['port'] = 50000
-        else:
-            dbconfig['port'] = 5432
-
-    if 'database' not in dbconfig or not dbconfig['database']:
-        dbconfig['database'] = getpass.getuser()
-
-    if 'user' not in dbconfig or not dbconfig['user']:
-        dbconfig['user'] = dbconfig['database']
-
-    if 'password' not in dbconfig or not dbconfig['password']:
-        dbconfig['password'] = dbconfig['user']
-
-    if 'host' not in dbconfig or not dbconfig['host']:
-        dbconfig['host'] = 'localhost'
-
     dbconfig['yes'] = options.yes
     dbconfig['destroy'] = options.destroy
 
     populate(dbconfig)
 
 
-def parse_arguments(argv=None):
+def get_parser():
+    trap_manage_note= """
+        A tool for managing TKP projects.
+
+        Use 'initproject' to create a project directory. Other Subcommands
+        should be run from within a project directory.
+
+        NB:
+        To overwrite the database settings in pipeline.cfg you can use these
+        environment variables to configure the connection:
+
+        * TKP_DBENGINE
+        * TKP_DBNAME
+        * TKP_DBUSER
+        * TKP_DBPASSWORD
+        * TKP_DBHOST
+        * TKP_DBPORT
+
+        (This is useful for setting up test databases, etc.)
+
+        """
+
     parser = argparse.ArgumentParser(
-        description='A tool for managing TKP projects',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__)
+        description=trap_manage_note,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+        )
     parser_subparsers = parser.add_subparsers()
 
     # initproject
-    initproject_parser = parser_subparsers.add_parser('initproject')
+    initproject_parser = parser_subparsers.add_parser(
+        'initproject',
+        help="""
+        Initialize a pipeline project directory, complete with config files which you
+        can use to configure your pipeline.
+        """                                                      )
     initproject_parser.add_argument('name', help='project folder name')
     initproject_parser.add_argument('-t', '--target',
                                     help='location of new TKP project')
     initproject_parser.set_defaults(func=init_project)
 
     # initjob
-    initjob_parser = parser_subparsers.add_parser('initjob')
+    initjob_parser = parser_subparsers.add_parser(
+        'initjob',
+        help="""
+        Create a job folder, complete with job-specific config files
+        which you will need to modify.
+        """)
     initjob_parser.add_argument('name', help='Name of new job')
     initjob_parser.set_defaults(func=init_job)
 
     # runjob
-    run_help = """Run a specific job.
-
-To overwrite the database settings in pipeline.cfg you can use these
-environment variables to configure the connection:
-
-  * TKP_DBENGINE
-  * TKP_DBNAME
-  * TKP_DBUSER
-  * TKP_DBPASS
-  * TKP_DBHOST
-  * TKP_DBPORT
-
-"""
-    run_parser = parser_subparsers.add_parser('run', description=run_help,
-                              formatter_class=argparse.RawTextHelpFormatter)
+    run_parser = parser_subparsers.add_parser(
+        'run',
+        help="Run a job by specifying the name of the job folder.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
 
     run_parser.add_argument('name', help='Name of job to run')
     m_help = 'a list of RA,DEC coordinates to monitor in JSON format,' \
@@ -310,28 +304,22 @@ environment variables to configure the connection:
     run_parser.set_defaults(func=run_job)
 
     #initdb
-    initdb_parser = parser_subparsers.add_parser('initdb')
+    initdb_parser = parser_subparsers.add_parser(
+        'initdb',
+        help="Initialize a database with the TKP schema.")
     initdb_parser.add_argument('-y', '--yes',
                                help="don't ask for confirmation",
                                action="store_true")
     initdb_parser.add_argument('-d', '--destroy',
-                               help="remove all tables before population",
+                               help="remove all tables before population"
+                                    "(only works with Postgres backend)",
                                action="store_true")
     initdb_parser.set_defaults(func=init_db)
-
-    # celery
-    description = 'shortcut for access to celery sub commands'
-    celery_parser = parser_subparsers.add_parser('celery',
-                                                 description=description)
-    celery_parser.add_argument('rest', nargs=argparse.REMAINDER,
-                               help='A celery subcommand')
-    celery_parser.set_defaults(func=celery_cmd)
-
-    return parser.parse_args(argv)
+    return parser
 
 
 def main():
-    args = parse_arguments()
+    args = get_parser().parse_args()
     args.func(args)
 
 

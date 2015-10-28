@@ -4,8 +4,7 @@ import unittest
 
 from tkp import accessors
 from tkp.accessors.lofaraccessor import LofarAccessor
-from tkp.accessors.lofarcasaimage import LofarCasaImage, parse_tautime, \
-    non_overlapping_time
+from tkp.accessors.lofarcasaimage import LofarCasaImage
 from tkp.testutil.decorators import requires_data
 from tkp.utility.coordinates import angsep
 from tkp.testutil.data import DATAPATH
@@ -13,11 +12,10 @@ from tkp.testutil.data import DATAPATH
 
 casatable = os.path.join(DATAPATH, 'casatable/L55596_000TO009_skymodellsc_wmax6000_noise_mult10_cell40_npix512_wplanes215.img.restored.corr')
 
+@requires_data(casatable)
 class TestLofarCasaImage(unittest.TestCase):
-    @classmethod
-    @requires_data(casatable)
-    def setUpClass(cls):
-        cls.accessor = LofarCasaImage(casatable)
+    def setUp(self):
+        self.accessor = LofarCasaImage(casatable)
 
     def test_casaimage(self):
         self.assertTrue(isinstance(self.accessor, LofarAccessor))
@@ -72,12 +70,15 @@ class TestLofarCasaImage(unittest.TestCase):
                   (290, 300), (310, 320), (310, 311), (315, 320), (319, 320),
                   (319, 320)]
         answer = 165
-        self.assertEqual(non_overlapping_time(series), answer)
+        self.assertEqual(LofarCasaImage.non_overlapping_time(series), answer)
 
     def test_parse_tautime(self):
+        """
+        Insert some mock data in self.subtables, check it parses correctly.
+        """
         class MockOriginTable:
             def col(self, name):
                 if name == 'START': return [100, 100, 200]
                 elif name == 'END': return [150, 175, 300]
-        subtables = {'LOFAR_ORIGIN': MockOriginTable()}
-        self.assertEqual(parse_tautime(subtables), 175)
+        self.accessor.subtables = {'LOFAR_ORIGIN': MockOriginTable()}
+        self.assertEqual(self.accessor.parse_tautime(), 175)

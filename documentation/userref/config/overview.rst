@@ -26,9 +26,9 @@ work as they please.
 Creating a Project Directory
 ============================
 
-Use :ref:`tkp-manage.py <tkp-manage>` to create a project directory::
+Use :ref:`trap-manage.py <trap-manage>` to create a project directory::
 
-  $ tkp-manage.py initproject <directory-name>
+  $ trap-manage.py initproject <directory-name>
 
 The created directory will contain the following configuration files:
 
@@ -38,19 +38,15 @@ The created directory will contain the following configuration files:
    as well as specifying where and how to store log files.
    :ref:`See here <pipeline_cfg>` for a full description.
 
-``celeryconfig.py``
-   Configuration of the :ref:`Celery <celery-intro>` task distribution system.
-   :ref:`See here <celeryconfig_py>` for a full description.
-
 .. _config-job:
 
 Creating a Job
 ==============
 
-From within a project directory, use the ``tkp-manage.py`` script to create a job::
+From within a project directory, use the ``trap-manage.py`` script to create a job::
 
   $ cd ./<projectname>
-  $ tkp-manage.py initjob <jobname>
+  $ trap-manage.py initjob <jobname>
 
 This creates a job directory as a subdirectory of your project directory,
 named according to the job name. Within that directory, there are three
@@ -78,6 +74,16 @@ files:
    Configuration for each stage of the pipeline run represented by this job.
    This contains all the end-user tunable parameters which are relevant to
    TraP operation. :ref:`See here <job_params_cfg>` for details.
+
+.. _config-run:
+
+Running a Job
+==============
+Once fully configured, you will want to run a TraP job to process your data.
+From within a project directory, you can start a job using::
+
+   $ trap-manage.py run <jobname>
+
 
 .. _configparser:
 

@@ -11,8 +11,8 @@ import logging
 import datetime
 import pytz
 
-from pyrap.measures import measures
-from pyrap.quanta import quantity
+from casacore.measures import measures
+from casacore.quanta import quantity
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +31,18 @@ SECONDS_IN_HOUR = 60**2
 SECONDS_IN_DAY = 24 * SECONDS_IN_HOUR
 
 def julian_date(time=None, modified=False):
-    """Return the Julian Date: the number of days (including fractions) which
-    have elapsed between noon, UT on 1 January 4713 BC and the specified time.
+    """
+    Calculate the Julian date at a given timestamp.
 
-    If modified is True, return the Modified Julian Date: the number of days
-    (including fractions) which have elapsed between the start of 17 November
-    1858 AD and the specified time. Takes a datetime.datetime object as
-    input.
+
+
+    Args:
+        time (datetime.datetime): Timestamp to calculate JD for.
+        modified (bool): If True, return the Modified Julian Date:
+            the number of days (including fractions) which have elapsed between
+            the start of 17 November 1858 AD and the specified time.
+    Returns:
+        float: Julian date value.
     """
     if not time:
         time = datetime.datetime.now(pytz.utc)
@@ -51,6 +56,11 @@ def julian_date(time=None, modified=False):
 
 
 def mjd2datetime(mjd):
+    """
+    Convert a Modified Julian Date to datetime via 'unix time' representation.
+
+    NB 'unix time' is defined by the casacore/casacore package.
+    """
     q = quantity("%sd" % mjd)
     return datetime.datetime.fromtimestamp(q.to_unix_time())
 
@@ -62,7 +72,7 @@ def mjd2lst(mjd, position=None):
     reference position of CS002.
 
     mjd -- Modified Julian Date (float, in days)
-    position -- Position (pyrap measure)
+    position -- Position (casacore measure)
     """
     dm = measures()
     position = position or dm.position(
@@ -78,8 +88,9 @@ def mjds2lst(mjds, position=None):
     """
     As mjd2lst(), but takes an argument in seconds rather than days.
 
-    mjds -- Modified Julian Date (float, in seconds)
-    position -- Position (pyrap measure)
+    Args:
+        mjds (float):Modified Julian Date (in seconds)
+        position (casacore measure): Position for LST calcs
     """
     return mjd2lst(mjds/SECONDS_IN_DAY, position)
 
@@ -90,8 +101,9 @@ def jd2lst(jd, position=None):
     given position. If position is None, we default to the reference position
     of CS002.
 
-    jd -- Julian Date (float)
-    position -- Position (pyrap measure)
+    Args:
+        jd (float): Julian Date
+        position (casacore measure): Position for LST calcs.
     """
     return mjd2lst(jd - 2400000.5, position)
 
@@ -132,7 +144,7 @@ def unix2julian(timestamp):
 
     Args:
         timestamp (numbers.Number): Number of seconds since the modified
-        Julian epoch.
+            Julian epoch.
 
     Returns:
         numbers.Number: Number of seconds since the Unix epoch.
@@ -257,11 +269,11 @@ def propagate_sign(val1, val2, val3):
     meant: we raise.
 
     Args:
-        val1, val2, val3 (numeric): input values (hour/min/sec or deg/min/sec)
+        val1(float): (,val2,val3) input values (hour/min/sec or deg/min/sec)
 
     Returns:
-        sign (str): "+" or "-"
-        val1, val2, val3 (numeric): absolute values of inputs.
+        tuple: "+" or "-" string denoting sign,
+            val1, val2, val3 (numeric) denoting absolute values of inputs.
     """
     signs = [x<0 for x in (val1, val2, val3)]
     if signs.count(True) == 0:
@@ -446,9 +458,12 @@ def m(ra, dec, cra, cdec, incr):
              math.cos(math.radians(ra-cra)))) / math.radians(incr)
 
 
-# Find the l direction cosine in a radio image, given an RA and Dec and the
-# field centre
+
 def lm_to_radec(ra0, dec0, l, m):
+    """
+    Find the l direction cosine in a radio image, given an RA and Dec and the
+    field centre
+    """
     # This function should be the inverse of radec_to_lmn, but it is
     # not. There is likely an error here.
 

@@ -221,8 +221,9 @@ class DBObject(object):
                 q_end = time.time() - start
                 commit_end = time.time() - start
                 logfile.write(str(-1) + "," + str(q_end) + "," + str(commit_end) + "\n")
-                if not self.database.connection.autocommit:
-                    self.database.connection.commit()
+                if not self.database.connection.connection.autocommit:
+                    self.database.connection.connection.commit()
+
                 if self.database.engine == "monetdb":
                     self._id = cursor.lastrowid
                 elif self.database.engine == "postgresql":
@@ -230,6 +231,7 @@ class DBObject(object):
                 else:
                     raise self.database.connection.Error(
                          "Database engine not implemented in ORM.")
+
             except self.database.connection.Error:
                 logger.warn("insertion into database failed: %s",
                              (query % values))
@@ -276,7 +278,8 @@ class DBObject(object):
         # Shallow copy, but that's ok: all database values are
         # immutable (including datetime objects)
         if results:
-            self._data = results[0].copy()
+            # force to dict since sqlalchemy RowProxy doesn't have a copy
+            self._data = dict(results[0]).copy()
         else:
             self._data = {}
 
@@ -343,8 +346,7 @@ class DataSet(DBObject):
     def runcat_entries(self):
         """
         Returns:
-            a list of dictionarys:
-            representing rows in runningcatalog,
+            list: a list of dictionarys representing rows in runningcatalog,
             for all sources belonging to this dataset
 
             Column 'id' is returned with the key 'runcat'
@@ -512,7 +514,7 @@ class Image(DBObject):
                 tkp.config module
         """
         associate_extracted_sources(self._id, deRuiter_r,
-                                    new_source_sigma_margin)
+                                    new_source_sigma_margin=new_source_sigma_margin)
 
 
 class ExtractedSource(DBObject):
@@ -549,7 +551,7 @@ class ExtractedSource(DBObject):
         for this source.
 
         Returns:
-            (list) list of 5-tuples, each tuple being:
+            list: list of 5-tuples, each tuple being:
                 - observation start time as a datetime.datetime object
                 - integration time (float)
                 - integrated flux (float)

@@ -14,7 +14,8 @@ from tkp.db.associations import (
 logger = logging.getLogger(__name__)
 logdir = '/export/scratch2/bscheers/lofar/r2/performance/Oct2014/napels/10x10/run_1/log'
 
-def get_nulldetections(image_id):
+
+def get_nulldetections(image_id, expiration=10):
     """
     Returns the runningcatalog sources which:
 
@@ -31,6 +32,10 @@ def get_nulldetections(image_id):
     Sources which have not been seen earlier, and which appear in
     different bands at the current timestep, are *not* null detections,
     but are considered as "new" sources.
+
+    args:
+        image_id (int): database ID of image
+        expiration (int): number of forced fits performed after a blind fit):
 
     Returns: list of tuples [(runcatid, ra, decl)]
     """
@@ -58,6 +63,7 @@ SELECT t0.id
          WHERE i0.id = %(image_id)s
            AND a0.skyrgn = i0.skyrgn
            AND r0.id = a0.runcat
+           AND r0.forcedfits_count < %(expiration)s
            AND x0.id = r0.xtrsrc
            AND i1.id = x0.image
            AND i0.taustart_ts > i1.taustart_ts
@@ -71,7 +77,7 @@ SELECT t0.id
        ON t0.id = t1.runcat
  WHERE t1.runcat IS NULL
 """
-    qry_params = {'image_id': image_id}
+    qry_params = {'image_id': image_id, 'expiration': expiration}
     logfile = open(logdir + '/' + get_nulldetections.__name__ + '.log', 'a')
     start = time.time()
     cursor = execute(query, qry_params)
@@ -98,6 +104,7 @@ def associate_nd(image_id):
     _del_tempruncat(image_id)
     _insert_tempruncat(image_id)
     _insert_1_to_1_assoc(image_id)
+    _increment_forcedfits_count(image_id)
 
     n_updated = _update_1_to_1_runcat_flux(image_id)
     if n_updated:
@@ -107,6 +114,30 @@ def associate_nd(image_id):
         logger.debug("Inserted new-band flux measurement for %s null_detections"
                     % n_inserted)
     _del_tempruncat(image_id)
+
+
+def _increment_forcedfits_count(image_id):
+    """
+    Increment the forcedfits count for every runningcatalog entry in the
+    temprunningcatalog table.
+    """
+    query = """\
+UPDATE runningcatalog
+   SET forcedfits_count = forcedfits_count + 1
+ WHERE id IN (SELECT t.runcat
+                FROM temprunningcatalog t
+                    ,runningcatalog r
+               WHERE t.runcat = r.id
+             )
+"""
+    qry_params = {'image_id': image_id}
+    logfile = open(logdir + '/' + _increment_forcedfits_count.__name__ + '.nd.log', 'a')
+    start = time.time()
+    cursor = execute(query, qry_params, commit=True)
+    q_end = time.time() - start
+    commit_end = time.time() - start
+    logfile.write(str(image_id) + "," + str(q_end) + "," + str(commit_end) + "\n")
+
 
 def _insert_tempruncat(image_id):
     """

@@ -7,11 +7,12 @@ import logging
 import warnings
 from tempfile import NamedTemporaryFile
 
-from pyrap.images import image as pyrap_image
+from casacore.images import image as casacore_image
 
 import tkp.accessors
 from tkp.db.database import Database
 from tkp.db.orm import DataSet, Image
+from tkp.quality.statistics import rms_with_clipped_subregion
 
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ def image_to_mongodb(filename, hostname, port, db):
         return False
 
     try:
-        connection = pymongo.Connection(host=hostname, port=port)
+        connection = pymongo.MongoClient(host=hostname, port=port)
         gfs = gridfs.GridFS(connection[db])
         if gfs.exists(filename=filename):
             logger.debug("File already in database")
@@ -39,7 +40,7 @@ def image_to_mongodb(filename, hostname, port, db):
             # is in FITS or CASA format.
             # temp_fits_file is removed automatically when closed.
             temp_fits_file = NamedTemporaryFile()
-            i = pyrap_image(filename)
+            i = casacore_image(filename)
             i.tofits(temp_fits_file.name)
             new_file = gfs.new_file(filename=filename)
             with open(temp_fits_file.name, "r") as f:
@@ -81,16 +82,17 @@ def create_dataset(dataset_id, description):
     return dataset.id
 
 
-def extract_metadatas(images, sigma, f):
+def extract_metadatas(images, rms_est_sigma, rms_est_fraction):
     """
-    returns the metadata extracted from the list of images.
+    Extracts metadata and rms_qc values from the list of images.
 
-    args:
+    Args:
         images: list of image urls
-        sigma: used for RMS calculation, see `tkp.quality.statistics`
-        f: used for RMS calculation, see `tkp.quality.statistics`
+        rms_est_sigma: used for RMS calculation, see `tkp.quality.statistics`
+        rms_est_fraction: used for RMS calculation, see `tkp.quality.statistics`
 
-    a list of metadata's. The metadata will be False if extraction failed.
+    Returns:
+        a list of metadata's. The metadata will be False if extraction failed.
     """
     results = []
     for image in images:
@@ -101,9 +103,10 @@ def extract_metadatas(images, sigma, f):
             logging.error("Can't open image %s: %s" % (image, e))
             results.append(False)
         else:
-            accessor.sigma = sigma
-            accessor.f = f
-            results.append(accessor.extract_metadata())
+            metadata = accessor.extract_metadata()
+            metadata['rms_qc'] = rms_with_clipped_subregion(accessor.data,
+                                                rms_est_sigma,rms_est_fraction)
+            results.append(metadata)
     return results
 
 
@@ -140,7 +143,7 @@ def store_images(images_metadata, extraction_radius_pix, dataset_id):
     return image_ids
 
 
-def node_steps(images, image_cache_config, sigma, f):
+def node_steps(images, image_cache_config, rms_est_sigma, rms_est_fraction):
     """
     this function executes all persistence steps that should be executed on a node.
     Note: Should only be used in a node recipe
@@ -156,5 +159,5 @@ def node_steps(images, image_cache_config, sigma, f):
     else:
         logger.info("Not copying images to mongodb")
 
-    metadatas = extract_metadatas(images, sigma, f)
+    metadatas = extract_metadatas(images, rms_est_sigma, rms_est_fraction)
     return metadatas

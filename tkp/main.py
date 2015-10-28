@@ -1,12 +1,5 @@
 """
-Main pipeline logic is defined here.
-
-The science logic is a bit entwined with celery-specific functionality.
-This is somewhat unavoidable, since how a task is parallelised (or not) has
-implications for the resulting logic.
-
-In general, we try to keep functions elsewhere so this file is succinct.
-The exceptions are a couple of celery-specific subroutines.
+The main pipeline logic, from where all other components are called.
 """
 import imp
 import logging
@@ -62,6 +55,7 @@ def run(job_name, supplied_mon_coords=[]):
     job_config = load_job_config(pipe_config)
     se_parset = job_config.source_extraction
     deruiter_radius = job_config.association.deruiter_radius
+    beamwidths_limit = job_config.association.beamwidths_limit
     new_src_sigma = job_config.transient_search.new_source_sigma_margin
 
     all_images = imp.load_source('images_to_process',
@@ -102,10 +96,10 @@ def run(job_name, supplied_mon_coords=[]):
     image_cache_params = pipe_config.image_cache
     imgs = [[img] for img in all_images]
 
-    sigma = job_config.persistence.sigma
-    f = job_config.persistence.f
+    rms_est_sigma = job_config.persistence.rms_est_sigma
+    rms_est_fraction = job_config.persistence.rms_est_fraction
     metadatas = runner.map("persistence_node_step", imgs,
-                           [image_cache_params, sigma, f])
+                           [image_cache_params, rms_est_sigma, rms_est_fraction])
     metadatas = [m[0] for m in metadatas if m]
 
     logger.info("Storing images")
@@ -160,11 +154,13 @@ def run(job_name, supplied_mon_coords=[]):
             logger.info("performing DB operations for image %s" % image.id)
 
             logger.info("performing source association")
-            dbass.associate_extracted_sources(
-                image.id,deRuiter_r=deruiter_radius,
-                new_source_sigma_margin=new_src_sigma)
+            dbass.associate_extracted_sources(image.id,
+                                              deRuiter_r=deruiter_radius,
+                                              new_source_sigma_margin=new_src_sigma)
 
-            all_fit_posns, all_fit_ids = steps_ff.get_forced_fit_requests(image)
+            expiration = job_config.source_extraction.expiration
+            all_fit_posns, all_fit_ids = steps_ff.get_forced_fit_requests(image,
+                                                                          expiration)
             if all_fit_posns:
                 successful_fits, successful_ids = steps_ff.perform_forced_fits(
                     all_fit_posns, all_fit_ids, image.url, se_parset)

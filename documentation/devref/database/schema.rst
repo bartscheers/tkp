@@ -354,8 +354,14 @@ The TraP may add forced-fit entries to this table as well. Then
 
 **chisq, reduced_chisq**
     Goodness of fit metrics for fitted Gaussian profiles.
-    (NB. These are not yet implemented, but have been placed in the schema
-    in advance, to avoid extra database migrations.)
+
+    .. note::
+        These provide useful information for e.g.
+        machine-classification and filtering of transient candidates, but
+        strictly speaking are not statistically valid (we might rename
+        them in a future release to avoid confusion).
+        See :func:`tkp.sourcefinder.fitting.goodness_of_fit` for
+        details.
 
 **extract_type**
     Reports how the source was extracted by sourcefinder (:ref:`Spreeuw (2010)
@@ -419,6 +425,7 @@ assuming a band width of 1 MHz.
 
 .. _MSSS: http://www.lofar.org/wiki/doku.php?id=msss:documentation#standard_msss-lba_frequency_bands
 
+.. _schema-image:
 
 image
 =====
@@ -778,6 +785,13 @@ If no counterpart could be found for an extracted sources, it is appended to
 **mon_src**
     Boolean to indicate whether an entry is from the user-specified monitoring list.
     Default value is false.
+
+**forcedfits_count**
+    The number of forced fits performed since the last blind fit. Used to
+    'expire' the runningcatalog - else said to stop monitoring a source of
+    which the flux went below the detection threshold after a configurable
+    amount of timesteps. Controlled by the ``expiration`` configuration
+    variable.
 
 .. _schema-runningcatalog-flux:
 
