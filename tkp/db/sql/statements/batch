@@ -1,4 +1,8 @@
 #
+# Table that should be imported for dbscale branch
+#
+tables/detection.sql
+#
 # ordered list of sql files that should be imported
 #
 #system functions

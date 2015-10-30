@@ -206,7 +206,7 @@ def insert_extr_sources(image_id, results, extract_type,
 
     delete_detections(image_id)
     insert_detections(image_id, results, extract_type, ff_runcat_ids=ff_runcat_ids, ff_monitor_ids=ff_monitor_ids)
-    delete_detections_inf_fluxerrors(image_id)
+    #delete_detections_inf_fluxerrors(image_id)
     insert_extracted_sources_from_detections(image_id)
     delete_detections(image_id)
 
@@ -240,10 +240,12 @@ def insert_detections(image_id, results, extract_type,
     (12) ew_sys_err [arcsec], (13) ns_sys_err [arcsec],
     (14) error_radius [arcsec]
     (15) gaussian fit (bool)
+    (16) chisq
+    (17) reduced_chisq
 
     We add
-    (16) extract_type is either 0,1 or 2 of 'blind', 'ff_nd' or 'ff_ms' resp.
-    (17) runcat, if extract_type is 'ff_nd' or 'ff_ms'
+    (18) extract_type is either 0,1 or 2 of 'blind', 'ff_nd' or 'ff_ms' resp.
+    (19) runcat, if extract_type is 'ff_nd' or 'ff_ms'
     """
     if not len(results):
         logger.info("No extract_type=%s sources added to extractedsource for"
@@ -325,6 +327,8 @@ def insert_extracted_sources_from_detections(image_id):
     (12) ew_sys_err [arcsec], (13) ns_sys_err [arcsec],
     (14) error_radius [arcsec]
     (15) gaussian fit (bool)
+    (16) chisq
+    (17) reduced_chisq
 
     """
 
@@ -346,6 +350,8 @@ INSERT INTO extractedsource
   ,ns_sys_err
   ,error_radius
   ,fit_type
+  ,chisq
+  ,reduced_chisq
   ,ra_err
   ,decl_err
   ,uncertainty_ew
@@ -374,8 +380,10 @@ INSERT INTO extractedsource
         ,t0.pa
         ,t0.ew_sys_err
         ,t0.ns_sys_err
-        ,t0.t0error_radius
+        ,t0.error_radius
         ,t0.fit_type
+        ,t0.chisq
+        ,t0.reduced_chisq
         ,SQRT( t0.ra_fit_err * t0.ra_fit_err
              + alpha(t0.ew_sys_err/3600, t0.decl) * alpha(t0.ew_sys_err/3600, t0.decl)
              ) AS ra_err
@@ -383,10 +391,10 @@ INSERT INTO extractedsource
              + t0.ns_sys_err * t0.ns_sys_err / 12960000)
              AS decl_err
         ,SQRT( t0.ew_sys_err * t0.ew_sys_err
-             + t0.t0error_radius * t0.t0error_radius
+             + t0.error_radius * t0.error_radius
              ) / 3600 AS uncertainty_ew
         ,SQRT( t0.ns_sys_err * t0.ns_sys_err
-             + t0.t0error_radius * t0.t0error_radius
+             + t0.error_radius * t0.error_radius
              ) / 3600 AS uncertainty_ns
         ,t0.image
         ,t0.zone
@@ -417,11 +425,10 @@ INSERT INTO extractedsource
                 ,pa
                 ,ew_sys_err
                 ,ns_sys_err
-                ,CASE WHEN error_radius = 'inf'
-                      THEN 360
-                      ELSE error_radius
-                 END AS t0error_radius
+                ,error_radius
                 ,fit_type
+                ,chisq
+                ,reduced_chisq
                 ,%(image_id)s AS image
                 ,CAST(FLOOR(decl) AS INTEGER) AS zone
                 ,COS(RADIANS(decl)) * COS(RADIANS(ra)) AS x
@@ -431,8 +438,6 @@ INSERT INTO extractedsource
                 ,extract_type
                 ,runcat
             FROM detection
-           WHERE f_peak_err < 'inf'
-             AND f_int_err < 'inf'
          ) t0
 
 """

@@ -15,6 +15,8 @@ CREATE TABLE detection
   ,ns_sys_err DOUBLE PRECISION NOT NULL
   ,error_radius DOUBLE PRECISION NOT NULL
   ,fit_type SMALLINT NOT NULL
+  ,chisq DOUBLE PRECISION 
+  ,reduced_chisq DOUBLE PRECISION
   ,extract_type SMALLINT NOT NULL
   ,runcat INT 
   /*,ff_monitor INT*/
